@@ -85,9 +85,11 @@ export default function App() {
           if (oldStatus && oldStatus !== s.status && s.status in NOTIFY_STATUSES) {
             const name = s.custom_name || s.project_name
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(`claude-tabs: ${name}`, {
+              const n = new Notification(`claude-tabs: ${name}`, {
                 body: NOTIFY_STATUSES[s.status],
               })
+              const sid = s.session_id
+              n.onclick = () => { window.focus(); setSelectedId(sid); n.close() }
             }
             playNotificationSound()
           }
