@@ -1,0 +1,49 @@
+{
+  "_comment": "~/.claude/settings.json の hooks セクションに以下を追加",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude-tabs/bin/claude-tabs hook SessionStart --claude-pid $PPID"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude-tabs/bin/claude-tabs hook UserPromptSubmit --claude-pid $PPID"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude-tabs/bin/claude-tabs hook AskUserQuestion --claude-pid $PPID"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude-tabs/bin/claude-tabs hook Stop --claude-pid $PPID"
+          }
+        ]
+      }
+    ]
+  }
+}
