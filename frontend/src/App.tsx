@@ -12,6 +12,7 @@ export type Session = {
   question?: string
   project_name: string
   custom_name?: string
+  tty?: string
 }
 
 const NOTIFY_STATUSES: Record<string, string> = {
@@ -132,6 +133,10 @@ export default function App() {
     await fetch(`/api/sessions/name?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`, { method: 'POST' })
   }, [])
 
+  const handleSetTTY = useCallback(async (id: string, tty: string) => {
+    await fetch(`/api/sessions/tty?id=${encodeURIComponent(id)}&tty=${encodeURIComponent(tty)}`, { method: 'POST' })
+  }, [])
+
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
@@ -151,7 +156,7 @@ export default function App() {
         />
         <main className="main">
           {selected ? (
-            <SessionDetail session={selected} onRename={handleRename} />
+            <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} />
           ) : (
             <div className="empty-hint">
               セッションなし。Claude Code hooks を設定してセッションを開始してください。

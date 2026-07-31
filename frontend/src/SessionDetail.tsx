@@ -21,16 +21,20 @@ function formatTime(dateStr: string): string {
 type Props = {
   session: Session
   onRename: (id: string, name: string) => void
+  onSetTTY: (id: string, tty: string) => void
 }
 
-export default function SessionDetail({ session, onRename }: Props) {
+export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const config = STATUS_CONFIG[session.status] ?? { label: session.status, icon: '?', className: '' }
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
+  const [editingTTY, setEditingTTY] = useState(false)
+  const [editTTY, setEditTTY] = useState('')
   const [history, setHistory] = useState<HistoryMessage[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [focusing, setFocusing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const ttyInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (historyOpen) {
@@ -55,6 +59,17 @@ export default function SessionDetail({ session, onRename }: Props) {
     } else if (!name || name === session.project_name) {
       onRename(session.session_id, '')
     }
+  }
+
+  const startEditTTY = () => {
+    setEditTTY(session.tty || '')
+    setEditingTTY(true)
+    setTimeout(() => ttyInputRef.current?.focus(), 0)
+  }
+
+  const submitTTY = () => {
+    setEditingTTY(false)
+    onSetTTY(session.session_id, editTTY.trim())
   }
 
   const handleFocus = async () => {
@@ -91,7 +106,7 @@ export default function SessionDetail({ session, onRename }: Props) {
       </div>
 
       <div className="detail-actions">
-        {session.status !== 'terminated' && session.pid > 0 && (
+        {session.status !== 'terminated' && (session.pid > 0 || session.tty) && (
           <button className="action-btn focus-btn" onClick={handleFocus} disabled={focusing}>
             {focusing ? 'Focusing...' : '🖥 Focus Terminal'}
           </button>
@@ -113,6 +128,26 @@ export default function SessionDetail({ session, onRename }: Props) {
         <div className="detail-field">
           <span className="detail-label">PID</span>
           <span className="detail-value detail-mono">{session.pid || '-'}</span>
+        </div>
+        <div className="detail-field">
+          <span className="detail-label">TTY</span>
+          {editingTTY ? (
+            <input
+              ref={ttyInputRef}
+              className="detail-name-input"
+              style={{ fontSize: 14 }}
+              value={editTTY}
+              placeholder="/dev/ttys001 (sbx等リモート環境のFocus Terminal用)"
+              onChange={e => setEditTTY(e.target.value)}
+              onBlur={submitTTY}
+              onKeyDown={e => { if (e.key === 'Enter') submitTTY(); if (e.key === 'Escape') setEditingTTY(false) }}
+            />
+          ) : (
+            <span className="detail-value detail-mono" onClick={startEditTTY} style={{ cursor: 'pointer' }}>
+              {session.tty || <span style={{ color: '#6c7086' }}>Click to set TTY</span>}
+              <span className="edit-icon" style={{ opacity: 0.5, marginLeft: 6 }}>✎</span>
+            </span>
+          )}
         </div>
         <div className="detail-field">
           <span className="detail-label">Session ID</span>

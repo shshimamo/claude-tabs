@@ -36,6 +36,7 @@ type Session struct {
 	Question    string    `json:"question,omitempty"`
 	ProjectName string    `json:"project_name"`
 	CustomName  string    `json:"custom_name,omitempty"`
+	TTY         string    `json:"tty,omitempty"`
 }
 
 // HistoryMessage is a simplified conversation message
@@ -429,6 +430,41 @@ func (s *server) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 	s.broadcastSessions()
 }
 
+func (s *server) handleSetTTY(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	tty := r.URL.Query().Get("tty")
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+
+	// Normalize tty path
+	if tty != "" && !strings.HasPrefix(tty, "/dev/") {
+		if !strings.HasPrefix(tty, "ttys") {
+			tty = "ttys" + tty
+		}
+		tty = "/dev/" + tty
+	}
+
+	s.mu.Lock()
+	session, ok := s.sessions[id]
+	if ok {
+		session.TTY = tty
+		data, _ := json.MarshalIndent(session, "", "  ")
+		os.WriteFile(filepath.Join(sessionsDir(), id+".json"), data, 0644)
+	}
+	s.mu.Unlock()
+
+	if ok {
+		s.broadcastSessions()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -438,8 +474,10 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	session, ok := s.sessions[id]
 	var pid int
+	var savedTTY string
 	if ok {
 		pid = session.PID
+		savedTTY = session.TTY
 	}
 	s.mu.RUnlock()
 
@@ -448,13 +486,8 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := "not_found"
-
-	// Try tty matching by PID
-	if pid > 0 {
-		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
-			tty := "/dev/" + strings.TrimSpace(string(out))
-			script := fmt.Sprintf(`
+	focusTTY := func(tty string) bool {
+		script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
@@ -470,9 +503,28 @@ tell application "iTerm2"
 	end repeat
 	return "not_found"
 end tell`, tty)
-			if r, err := exec.Command("osascript", "-e", script).Output(); err == nil {
-				result = strings.TrimSpace(string(r))
+		if r, err := exec.Command("osascript", "-e", script).Output(); err == nil {
+			return strings.TrimSpace(string(r)) == "found"
+		}
+		return false
+	}
+
+	result := "not_found"
+
+	// Try tty matching by PID
+	if pid > 0 {
+		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
+			tty := "/dev/" + strings.TrimSpace(string(out))
+			if focusTTY(tty) {
+				result = "found"
 			}
+		}
+	}
+
+	// Fallback: try saved TTY
+	if result != "found" && savedTTY != "" {
+		if focusTTY(savedTTY) {
+			result = "found"
 		}
 	}
 
@@ -653,6 +705,7 @@ func runServer() {
 
 	mux.HandleFunc("/api/sessions/delete", srv.handleDeleteSession)
 	mux.HandleFunc("/api/sessions/name", srv.handleRenameSession)
+	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 
