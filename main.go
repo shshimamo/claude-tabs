@@ -443,18 +443,21 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RUnlock()
 
-	if !ok {
-		http.Error(w, "session not found", http.StatusBadRequest)
+	if !ok || pid <= 0 {
+		http.Error(w, "session not found or no PID", http.StatusBadRequest)
 		return
 	}
 
-	found := false
+	// Get tty from PID
+	out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		http.Error(w, "failed to get tty: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tty := "/dev/" + strings.TrimSpace(string(out))
 
-	// Try tty matching first (works for local sessions)
-	if pid > 0 {
-		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
-			tty := "/dev/" + strings.TrimSpace(string(out))
-			script := fmt.Sprintf(`
+	// AppleScript to focus iTerm2 tab with matching tty
+	script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
@@ -470,45 +473,14 @@ tell application "iTerm2"
 	end repeat
 	return "not_found"
 end tell`, tty)
-			if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
-				if strings.TrimSpace(string(result)) == "found" {
-					found = true
-				}
-			}
-		}
-	}
 
-	// Fallback: match by project name in session name
-	if !found && session.ProjectName != "" {
-		script := fmt.Sprintf(`
-tell application "iTerm2"
-	activate
-	repeat with w in windows
-		repeat with t in tabs of w
-			repeat with s in sessions of t
-				if name of s contains "%s" then
-					select t
-					tell w to select
-					return "found"
-				end if
-			end repeat
-		end repeat
-	end repeat
-	return "not_found"
-end tell`, session.ProjectName)
-		if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
-			if strings.TrimSpace(string(result)) == "found" {
-				found = true
-			}
-		}
+	result, err := exec.Command("osascript", "-e", script).Output()
+	if err != nil {
+		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if found {
-		json.NewEncoder(w).Encode(map[string]string{"result": "found"})
-	} else {
-		json.NewEncoder(w).Encode(map[string]string{"result": "not_found"})
-	}
+	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
 }
 
 func encodeCWDPath(cwd string) string {
