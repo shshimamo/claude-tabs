@@ -486,7 +486,7 @@ tell application "iTerm2"
 	repeat with w in windows
 		repeat with t in tabs of w
 			repeat with s in sessions of t
-				if name of s is "%s" then
+				if name of s contains "%s" then
 					select t
 					tell w to select
 					return "found"
