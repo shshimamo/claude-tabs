@@ -1,10 +1,12 @@
-.PHONY: build build-linux-amd64 dev frontend-build frontend-dev install restart setup-hooks
+.PHONY: build dev frontend-build frontend-dev install restart setup-hooks clean
+
+# make build              → darwin/arm64 (auto detect)
+# GOOS=linux GOARCH=amd64 make build → linux/amd64
+GOOS   ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
 build: frontend-build
-	go build -o claude-tabs .
-
-build-linux-amd64: frontend-build
-	GOOS=linux GOARCH=amd64 go build -o claude-tabs-linux-amd64 .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o claude-tabs .
 
 dev:
 	go run . --server
@@ -36,5 +38,5 @@ setup-hooks:
 	@echo "hooks added to ~/.claude/settings.json"
 
 clean:
-	rm -f claude-tabs claude-tabs-linux-amd64
+	rm -f claude-tabs
 	rm -rf frontend/dist
