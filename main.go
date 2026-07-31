@@ -477,13 +477,18 @@ end tell`, tty)
 		}
 	}
 
-	// Fallback: match by PID in tab name
+	// Fallback: match by PID in tab/session name
 	if !found {
 		script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
 		repeat with t in tabs of w
+			if name of t contains "%s" then
+				select t
+				tell w to select
+				return "found"
+			end if
 			repeat with s in sessions of t
 				if name of s contains "%s" then
 					select t
@@ -494,7 +499,7 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "not_found"
-end tell`, pidStr)
+end tell`, pidStr, pidStr)
 		if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
 			if strings.TrimSpace(string(result)) == "found" {
 				found = true
