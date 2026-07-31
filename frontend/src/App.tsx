@@ -133,7 +133,7 @@ export default function App() {
   }, [])
 
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
-  const ATTENTION_STATUSES = ['idle', 'waiting_input', 'permission_required']
+  const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
 
   return (
