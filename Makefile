@@ -1,7 +1,10 @@
-.PHONY: build dev frontend-build frontend-dev install restart setup-hooks
+.PHONY: build build-linux-amd64 dev frontend-build frontend-dev install restart setup-hooks
 
 build: frontend-build
 	go build -o claude-tabs .
+
+build-linux-amd64: frontend-build
+	GOOS=linux GOARCH=amd64 go build -o claude-tabs-linux-amd64 .
 
 dev:
 	go run . --server
@@ -33,5 +36,5 @@ setup-hooks:
 	@echo "hooks added to ~/.claude/settings.json"
 
 clean:
-	rm -f claude-tabs
+	rm -f claude-tabs claude-tabs-linux-amd64
 	rm -rf frontend/dist
