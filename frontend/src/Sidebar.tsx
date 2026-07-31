@@ -52,10 +52,12 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Pr
               <span>{group.config.label}</span>
               <span className="sidebar-group-count">{group.items.length}</span>
             </div>
-            {group.items.map(session => (
+            {group.items.map(session => {
+              const attention = ['idle', 'waiting_input', 'permission_required'].includes(session.status)
+              return (
               <div
                 key={session.session_id}
-                className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}`}
+                className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}`}
                 onClick={() => onSelect(session.session_id)}
               >
                 <div className="sidebar-item-main">
@@ -76,7 +78,8 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Pr
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         ))}
         {sessions.length === 0 && (

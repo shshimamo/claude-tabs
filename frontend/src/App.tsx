@@ -133,10 +133,12 @@ export default function App() {
   }, [])
 
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
+  const ATTENTION_STATUSES = ['idle', 'waiting_input', 'permission_required']
+  const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
 
   return (
     <div className="app">
-      <header className="header">
+      <header className={`header${hasAttention ? ' header-attention' : ''}`}>
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
       </header>

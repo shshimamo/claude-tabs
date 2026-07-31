@@ -23,6 +23,12 @@ body {
 .logo { font-size: 18px; font-weight: bold; color: #89b4fa; }
 .session-count { font-size: 12px; color: #6c7086; }
 
+.header-attention {
+  background: rgba(255, 160, 60, 0.25);
+  border-bottom-color: #ffa03c;
+}
+.header-attention .logo { color: #ffa03c; }
+
 .body { display: flex; flex: 1; overflow: hidden; }
 
 /* Sidebar */
@@ -87,6 +93,15 @@ body {
 }
 .sidebar-item:hover { background: #313244; }
 .sidebar-item.selected { background: #45475a; }
+
+.sidebar-item.attention {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(255, 160, 60, 0.18); }
+}
 
 .sidebar-item-main {
   display: flex;
