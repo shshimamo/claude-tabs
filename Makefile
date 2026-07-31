@@ -1,4 +1,4 @@
-.PHONY: build dev frontend-build frontend-dev install restart
+.PHONY: build dev frontend-build frontend-dev install restart setup-hooks
 
 build: frontend-build
 	go build -o claude-tabs .
@@ -19,6 +19,18 @@ install: build
 restart: install
 	-pkill -f "claude-tabs --server"
 	~/.claude-tabs/bin/claude-tabs
+
+setup-hooks:
+	@if [ ! -f ~/.claude/settings.json ]; then echo '{}' > ~/.claude/settings.json; fi
+	jq --slurpfile h hooks-setup.json ' \
+		.hooks //= {} | \
+		reduce ($$h[0].hooks | to_entries[]) as $$e (.; \
+			if (.hooks[$$e.key] // [] | any(.hooks[].command | contains("claude-tabs"))) \
+			then . \
+			else .hooks[$$e.key] = ((.hooks[$$e.key] // []) + $$e.value) \
+			end \
+		)' ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
+	@echo "hooks added to ~/.claude/settings.json"
 
 clean:
 	rm -f claude-tabs
