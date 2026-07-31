@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -63,14 +62,6 @@ func projectName(cwd string) string {
 		return "unknown"
 	}
 	return filepath.Base(cwd)
-}
-
-func isProcessAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	err := syscall.Kill(pid, 0)
-	return err == nil
 }
 
 func main() {
@@ -300,20 +291,46 @@ func (s *server) handleFileChange(filePath string) {
 	s.broadcastSessions()
 }
 
+var inactiveThresholds = []struct {
+	Duration time.Duration
+	Status   string
+}{
+	{24 * time.Hour, "inactive_24h"},
+	{12 * time.Hour, "inactive_12h"},
+	{3 * time.Hour, "inactive_3h"},
+	{1 * time.Hour, "inactive_1h"},
+}
+
+func inactiveStatus(elapsed time.Duration) string {
+	for _, t := range inactiveThresholds {
+		if elapsed >= t.Duration {
+			return t.Status
+		}
+	}
+	return ""
+}
+
 func (s *server) healthCheck() {
 	s.mu.Lock()
 	changed := false
+	now := time.Now()
 	for _, session := range s.sessions {
+		if strings.HasPrefix(session.Status, "inactive_") {
+			// Re-evaluate tier
+			newStatus := inactiveStatus(now.Sub(session.LastUpdated))
+			if newStatus != session.Status {
+				session.Status = newStatus
+				changed = true
+			}
+			continue
+		}
 		if session.Status == "terminated" {
 			continue
 		}
-		if session.PID > 0 && !isProcessAlive(session.PID) {
-			session.Status = "terminated"
-			session.LastUpdated = time.Now()
+		elapsed := now.Sub(session.LastUpdated)
+		if newStatus := inactiveStatus(elapsed); newStatus != "" {
+			session.Status = newStatus
 			changed = true
-			// Update file
-			data, _ := json.MarshalIndent(session, "", "  ")
-			os.WriteFile(filepath.Join(sessionsDir(), session.SessionID+".json"), data, 0644)
 		}
 	}
 	s.mu.Unlock()

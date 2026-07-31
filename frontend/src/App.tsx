@@ -138,7 +138,7 @@ export default function App() {
     <div className="app">
       <header className="header">
         <span className="logo">claude-tabs</span>
-        <span className="session-count">{sessions.filter(s => s.status !== 'terminated').length} active</span>
+        <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
       </header>
       <div className="body">
         <Sidebar

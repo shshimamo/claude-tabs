@@ -1,12 +1,16 @@
 import type { Session } from './App'
 
-const STATUS_ORDER = ['ai_working', 'waiting_input', 'permission_required', 'idle', 'terminated']
+const STATUS_ORDER = ['ai_working', 'waiting_input', 'permission_required', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   ai_working:          { label: 'AI Working',          icon: '🔵', color: '#89b4fa' },
   waiting_input:       { label: 'Waiting Input',       icon: '❓', color: '#f9e2af' },
   permission_required: { label: 'Permission Required', icon: '🔐', color: '#fab387' },
   idle:                { label: 'Idle',                 icon: '💤', color: '#6c7086' },
+  inactive_1h:         { label: 'Inactive 1h+',        icon: '⏸️', color: '#585b70' },
+  inactive_3h:         { label: 'Inactive 3h+',        icon: '⏸️', color: '#504f6a' },
+  inactive_12h:        { label: 'Inactive 12h+',       icon: '⏸️', color: '#484764' },
+  inactive_24h:        { label: 'Inactive 24h+',       icon: '⏸️', color: '#45475a' },
   terminated:          { label: 'Terminated',           icon: '⛔', color: '#45475a' },
 }
 
@@ -63,7 +67,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Pr
                 </div>
                 <div className="sidebar-item-meta">
                   <span className="sidebar-time">{timeAgo(session.last_updated)}</span>
-                  {session.status === 'terminated' && (
+                  {(session.status === 'terminated' || session.status === 'idle' || session.status.startsWith('inactive_')) && (
                     <button
                       className="delete-btn"
                       onClick={e => { e.stopPropagation(); onDelete(session.session_id) }}
