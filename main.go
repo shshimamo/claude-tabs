@@ -443,21 +443,18 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RUnlock()
 
-	if !ok || pid <= 0 {
-		http.Error(w, "session not found or no PID", http.StatusBadRequest)
+	if !ok {
+		http.Error(w, "session not found", http.StatusBadRequest)
 		return
 	}
 
-	// Get tty from PID
-	out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		http.Error(w, "failed to get tty: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tty := "/dev/" + strings.TrimSpace(string(out))
+	result := "not_found"
 
-	// AppleScript to focus iTerm2 tab with matching tty
-	script := fmt.Sprintf(`
+	// Try tty matching by PID
+	if pid > 0 {
+		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
+			tty := "/dev/" + strings.TrimSpace(string(out))
+			script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
@@ -473,14 +470,20 @@ tell application "iTerm2"
 	end repeat
 	return "not_found"
 end tell`, tty)
-
-	result, err := exec.Command("osascript", "-e", script).Output()
-	if err != nil {
-		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
-		return
+			if r, err := exec.Command("osascript", "-e", script).Output(); err == nil {
+				result = strings.TrimSpace(string(r))
+			}
+		}
 	}
+
+	// Fallback: just activate iTerm2
+	if result != "found" {
+		exec.Command("osascript", "-e", `tell application "iTerm2" to activate`).Run()
+		result = "activated"
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
+	json.NewEncoder(w).Encode(map[string]string{"result": result})
 }
 
 func encodeCWDPath(cwd string) string {
