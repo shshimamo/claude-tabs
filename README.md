@@ -115,7 +115,7 @@ make install
 
 **Linux（sbx など hook 実行環境が Linux の場合）:**
 
-`make install-hook-linux` で Linux 用バイナリをビルドし、`claude-tabs-linux` を使用する:
+`make install-hook-linux` で Linux 用バイナリをビルドし、`claude-tabs-linux` を使用する（`hooks-setup-linux.json` を参照）:
 
 ```json
 {
