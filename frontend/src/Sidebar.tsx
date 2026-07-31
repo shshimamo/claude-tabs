@@ -69,13 +69,11 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Pr
                 </div>
                 <div className="sidebar-item-meta">
                   <span className="sidebar-time">{timeAgo(session.last_updated)}</span>
-                  {(session.status === 'terminated' || session.status === 'idle' || session.status.startsWith('inactive_')) && (
-                    <button
+                  <button
                       className="delete-btn"
                       onClick={e => { e.stopPropagation(); onDelete(session.session_id) }}
                       title="Delete"
                     >×</button>
-                  )}
                 </div>
               </div>
               )
