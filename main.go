@@ -429,34 +429,7 @@ func (s *server) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 	s.broadcastSessions()
 }
 
-func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	id := r.URL.Query().Get("id")
-	s.mu.RLock()
-	session, ok := s.sessions[id]
-	var pid int
-	if ok {
-		pid = session.PID
-	}
-	s.mu.RUnlock()
-
-	if !ok || pid <= 0 {
-		http.Error(w, "session not found or no PID", http.StatusBadRequest)
-		return
-	}
-
-	// Get tty from PID
-	out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		http.Error(w, "failed to get tty: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tty := "/dev/" + strings.TrimSpace(string(out))
-
-	// AppleScript to focus iTerm2 tab with matching tty
+func focusByTTY(tty string) (string, error) {
 	script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
@@ -473,14 +446,83 @@ tell application "iTerm2"
 	end repeat
 	return "not_found"
 end tell`, tty)
-
-	result, err := exec.Command("osascript", "-e", script).Output()
+	out, err := exec.Command("osascript", "-e", script).Output()
 	if err != nil {
-		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func focusByCWD(cwd string) (string, error) {
+	script := fmt.Sprintf(`
+tell application "iTerm2"
+	activate
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				set p to get variable "session.path" of s
+				if p is "%s" then
+					select t
+					tell w to select
+					return "found"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`, cwd)
+	out, err := exec.Command("osascript", "-e", script).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	id := r.URL.Query().Get("id")
+	s.mu.RLock()
+	session, ok := s.sessions[id]
+	var pid int
+	var cwd string
+	if ok {
+		pid = session.PID
+		cwd = session.CWD
+	}
+	s.mu.RUnlock()
+
+	if !ok {
+		http.Error(w, "session not found", http.StatusBadRequest)
+		return
+	}
+
+	// Try PID-based tty matching first
+	if pid > 0 {
+		out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output()
+		if err == nil {
+			tty := "/dev/" + strings.TrimSpace(string(out))
+			if result, err := focusByTTY(tty); err == nil && result == "found" {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{"result": "found"})
+				return
+			}
+		}
+	}
+
+	// Fallback: match by CWD
+	if cwd != "" {
+		if result, err := focusByCWD(cwd); err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"result": result})
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
+	json.NewEncoder(w).Encode(map[string]string{"result": "not_found"})
 }
 
 func encodeCWDPath(cwd string) string {
