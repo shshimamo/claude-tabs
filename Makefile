@@ -1,4 +1,4 @@
-.PHONY: build dev frontend-build frontend-dev install restart setup-hooks clean
+.PHONY: build dev frontend-build frontend-dev install install-hook-linux restart setup-hooks clean
 
 # make build              → darwin/arm64 (auto detect)
 # GOOS=linux GOARCH=amd64 make build → linux/amd64
@@ -21,6 +21,12 @@ install: build
 	mkdir -p ~/.claude-tabs/bin
 	cp claude-tabs ~/.claude-tabs/bin/claude-tabs
 
+# sbx (linux/amd64) 用 hook バイナリ
+install-hook-linux: frontend-build
+	GOOS=linux GOARCH=amd64 go build -o claude-tabs-linux .
+	mkdir -p ~/.claude-tabs/bin
+	cp claude-tabs-linux ~/.claude-tabs/bin/claude-tabs-linux
+
 restart: install
 	-pkill -f "claude-tabs --server"
 	~/.claude-tabs/bin/claude-tabs
@@ -38,5 +44,5 @@ setup-hooks:
 	@echo "hooks added to ~/.claude/settings.json"
 
 clean:
-	rm -f claude-tabs
+	rm -f claude-tabs claude-tabs-linux
 	rm -rf frontend/dist
