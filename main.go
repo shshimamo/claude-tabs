@@ -443,18 +443,18 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RUnlock()
 
-	if !ok || pid <= 0 {
-		http.Error(w, "session not found or no PID", http.StatusBadRequest)
+	if !ok {
+		http.Error(w, "session not found", http.StatusBadRequest)
 		return
 	}
 
-	pidStr := strconv.Itoa(pid)
-
-	// Try tty matching first
 	found := false
-	if out, err := exec.Command("ps", "-o", "tty=", "-p", pidStr).Output(); err == nil {
-		tty := "/dev/" + strings.TrimSpace(string(out))
-		script := fmt.Sprintf(`
+
+	// Try tty matching first (works for local sessions)
+	if pid > 0 {
+		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
+			tty := "/dev/" + strings.TrimSpace(string(out))
+			script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
@@ -470,27 +470,23 @@ tell application "iTerm2"
 	end repeat
 	return "not_found"
 end tell`, tty)
-		if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
-			if strings.TrimSpace(string(result)) == "found" {
-				found = true
+			if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
+				if strings.TrimSpace(string(result)) == "found" {
+					found = true
+				}
 			}
 		}
 	}
 
-	// Fallback: match by PID in tab/session name
-	if !found {
+	// Fallback: match by project name in session name
+	if !found && session.ProjectName != "" {
 		script := fmt.Sprintf(`
 tell application "iTerm2"
 	activate
 	repeat with w in windows
 		repeat with t in tabs of w
-			if name of t contains "%s" then
-				select t
-				tell w to select
-				return "found"
-			end if
 			repeat with s in sessions of t
-				if name of s contains "%s" then
+				if name of s is "%s" then
 					select t
 					tell w to select
 					return "found"
@@ -499,7 +495,7 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "not_found"
-end tell`, pidStr, pidStr)
+end tell`, session.ProjectName)
 		if result, err := exec.Command("osascript", "-e", script).Output(); err == nil {
 			if strings.TrimSpace(string(result)) == "found" {
 				found = true
