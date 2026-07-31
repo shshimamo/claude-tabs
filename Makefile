@@ -21,9 +21,9 @@ install: build
 	mkdir -p ~/.claude-tabs/bin
 	cp claude-tabs ~/.claude-tabs/bin/claude-tabs
 
-# sbx (linux/amd64) 用 hook バイナリ
+# sbx (linux/arm64) 用 hook バイナリ
 install-hook-linux: frontend-build
-	GOOS=linux GOARCH=amd64 go build -o claude-tabs-linux .
+	GOOS=linux GOARCH=arm64 go build -o claude-tabs-linux .
 	mkdir -p ~/.claude-tabs/bin
 	cp claude-tabs-linux ~/.claude-tabs/bin/claude-tabs-linux
 
