@@ -36,10 +36,15 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [sendText, setSendText] = useState('')
   const [sending, setSending] = useState(false)
   const [keysSent, setKeysSent] = useState(false)
+  const [presets, setPresets] = useState<{ label: string; text: string }[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setKeysSent(false) }, [session.status, session.last_output])
+
+  useEffect(() => {
+    fetch('/api/presets').then(r => r.json()).then(setPresets).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (historyOpen) {
@@ -155,9 +160,9 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         <div className="detail-input-section">
           <div className="detail-input-label">定型文</div>
           <div className="detail-input-row">
-            <button className="action-btn" onClick={() => handleSendInput('yes')} disabled={sending}>Yes</button>
-            <button className="action-btn" onClick={() => handleSendInput('commit して')} disabled={sending}>Commit</button>
-            <button className="action-btn" onClick={() => handleSendInput('commit して push して')} disabled={sending}>Commit & Push</button>
+            {presets.map((p, i) => (
+              <button key={i} className="action-btn" onClick={() => handleSendInput(p.text)} disabled={sending}>{p.label}</button>
+            ))}
           </div>
           <div className="detail-input-label" style={{ marginTop: 12 }}>自由入力</div>
           <div className="detail-input-row">

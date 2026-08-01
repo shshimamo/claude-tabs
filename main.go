@@ -867,6 +867,158 @@ func (s *server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	s.broadcastSessions()
 }
 
+type Preset struct {
+	Label string `json:"label"`
+	Text  string `json:"text"`
+}
+
+var defaultPresets = []Preset{
+	{Label: "Yes", Text: "yes"},
+	{Label: "Commit", Text: "commit して"},
+	{Label: "Commit & Push", Text: "commit して push して"},
+}
+
+func presetsFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude-tabs", "presets.json")
+}
+
+func loadPresets() []Preset {
+	data, err := os.ReadFile(presetsFilePath())
+	if err != nil {
+		return defaultPresets
+	}
+	var presets []Preset
+	if err := json.Unmarshal(data, &presets); err != nil {
+		return defaultPresets
+	}
+	return presets
+}
+
+func handlePresets(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(loadPresets())
+}
+
+func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	repo := r.URL.Query().Get("repo")
+	branch := r.URL.Query().Get("branch")
+	if repo == "" || branch == "" {
+		http.Error(w, "repo and branch required", http.StatusBadRequest)
+		return
+	}
+
+	respond := func(status int, msg string) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"message": msg})
+	}
+
+	// ghqからリポジトリ検索
+	ghqOut, err := exec.Command("ghq", "list", "-p").Output()
+	if err != nil {
+		respond(http.StatusInternalServerError, "ghq list failed: "+err.Error())
+		return
+	}
+	var repoPath string
+	for _, line := range strings.Split(strings.TrimSpace(string(ghqOut)), "\n") {
+		if strings.HasSuffix(line, "/"+repo) {
+			repoPath = line
+			break
+		}
+	}
+	if repoPath == "" {
+		respond(http.StatusBadRequest, "Repository not found: "+repo)
+		return
+	}
+
+	// worktree base
+	ghqRoot, err := exec.Command("ghq", "root").Output()
+	if err != nil {
+		respond(http.StatusInternalServerError, "ghq root failed")
+		return
+	}
+	wtBase := os.Getenv("WORKTREE_BASE")
+	if wtBase == "" {
+		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
+	}
+	wtPath := filepath.Join(wtBase, repo, branch)
+	sbxName := repo + "-" + branch
+	template := os.Getenv("SBX_TEMPLATE")
+	if template == "" {
+		template = "my-sbx:latest"
+	}
+
+	// worktree作成
+	if _, err := os.Stat(wtPath); err == nil {
+		// already exists, skip
+	} else {
+		// git fetch origin
+		if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
+			respond(http.StatusInternalServerError, "git fetch failed: "+string(out))
+			return
+		}
+		// check if remote branch exists
+		if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
+			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
+				respond(http.StatusInternalServerError, "git worktree add failed: "+string(out))
+				return
+			}
+		} else {
+			// new branch
+			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "-b", branch).CombinedOutput(); err != nil {
+				respond(http.StatusInternalServerError, "git worktree add (new branch) failed: "+string(out))
+				return
+			}
+		}
+	}
+
+	// sbx create
+	paths := []string{wtPath}
+	if mounts := os.Getenv("SBX_DEFAULT_MOUNTS"); mounts != "" {
+		for _, m := range strings.Fields(mounts) {
+			paths = append(paths, m)
+		}
+	}
+	sbxArgs := []string{"create", "--name", sbxName, "-t", template, "claude"}
+	sbxArgs = append(sbxArgs, paths...)
+	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
+		respond(http.StatusInternalServerError, "sbx create failed: "+string(out))
+		return
+	}
+
+	// setup-dotfiles + plugins (best effort)
+	exec.Command("sbx", "exec", sbxName, "sh", "-c", "command -v setup-dotfiles >/dev/null && setup-dotfiles 2>/dev/null").Run()
+	home, _ := os.UserHomeDir()
+	pluginsDir := filepath.Join(home, "devel/src/github.com/shshimamo/claude-plugins")
+	exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pluginsDir).Run()
+	if entries, err := os.ReadDir(filepath.Join(pluginsDir, "plugins")); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", e.Name()+"@shshimamo-plugins").Run()
+			}
+		}
+	}
+
+	// iTerm新タブでclaude起動
+	script := fmt.Sprintf(`
+tell application "iTerm2"
+	tell current window
+		create tab with default profile
+		tell current session of current tab
+			write text "sbx run --name %s claude"
+		end tell
+	end tell
+end tell`, sbxName)
+	exec.Command("osascript", "-e", script).Run()
+
+	respond(http.StatusOK, "Worktree created and Claude started: "+sbxName)
+}
+
 func runServer() {
 	srv := newServer()
 	srv.loadSessions()
@@ -896,6 +1048,8 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/input", srv.handleSendInput)
 	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
+	mux.HandleFunc("/api/worktree/create", srv.handleWorktreeCreate)
+	mux.HandleFunc("/api/presets", handlePresets)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)
 

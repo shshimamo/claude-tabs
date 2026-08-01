@@ -6,12 +6,18 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 
 ## 機能
 
-- セッション状態のリアルタイム表示（AI Working / Waiting Input / Permission Required / Idle / Terminated）
+- セッション状態のリアルタイム表示（AI作業中 / 回答待ち / 許可待ち / 入力待ち / 終了）
 - ステータス別グルーピング
 - セッション名のカスタマイズ
 - iTerm2 ターミナルフォーカス（AppleScript）
+- ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
+- 許可プロンプトの操作（Allow / Allow Always / Deny）
+- AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
 - 会話履歴の表示（JSONL トランスクリプト読み込み）
-- プロセス生存チェックによる自動 Terminated 検出
+- 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
+- アテンション UI（ヘッダー色変化 + サイドバーパルス）
+- 定型文のカスタマイズ（`~/.claude-tabs/presets.json`）
+- Worktree + sbx + Claude 自動起動（Web UI / CLI）
 
 ## アーキテクチャ
 
@@ -46,7 +52,8 @@ claude-tabs/
         ├── main.tsx         # エントリーポイント
         ├── App.tsx          # メインレイアウト、WebSocket 接続
         ├── Sidebar.tsx      # セッション一覧（ステータス別グループ）
-        ├── SessionDetail.tsx # セッション詳細、名前編集、履歴表示
+        ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
+        ├── WorktreeModal.tsx # Worktree作成モーダル
         └── index.css        # Catppuccin ダークテーマ
 ```
 
@@ -56,9 +63,10 @@ claude-tabs/
 ~/.claude-tabs/
 ├── bin/
 │   └── claude-tabs          # インストール先バイナリ
-└── sessions/                # セッション状態 JSON（hook が書き込み）
-    ├── {session_id}.json
-    └── ...
+├── sessions/                # セッション状態 JSON（hook が書き込み）
+│   ├── {session_id}.json
+│   └── ...
+└── presets.json             # 定型文設定（任意）
 ```
 
 ## セットアップ
@@ -161,6 +169,42 @@ make install
 ```
 
 ブラウザが自動で開く。サーバーが既に起動中なら既存サーバーに接続。
+
+## 定型文カスタマイズ
+
+`~/.claude-tabs/presets.json` でブラウザ UI の定型文ボタンをカスタマイズできる:
+
+```json
+[
+  { "label": "Yes", "text": "yes" },
+  { "label": "Commit", "text": "commit して" },
+  { "label": "Commit & Push", "text": "commit して push して" }
+]
+```
+
+ファイルがない場合は上記デフォルトが使用される。
+
+## Worktree + sbx 連携
+
+Web UI の「+ New Worktree」ボタンまたは CLI から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
+
+### CLI
+
+```sh
+# worktree作成 + sbx作成 + iTerm新タブでclaude起動
+wt-sbx <repo> <branch>
+
+# worktree一覧からfzfで選択してcd
+wtcd
+
+# worktree + sbx を削除
+wtrm
+```
+
+環境変数:
+- `WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
+- `SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
+- `SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）
 
 ## CLI モード
 

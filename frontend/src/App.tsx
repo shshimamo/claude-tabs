@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar'
 import SessionDetail from './SessionDetail'
+import WorktreeModal from './WorktreeModal'
 
 export type Session = {
   session_id: string
@@ -139,6 +140,8 @@ export default function App() {
     await fetch(`/api/sessions/tty?id=${encodeURIComponent(id)}&tty=${encodeURIComponent(tty)}`, { method: 'POST' })
   }, [])
 
+  const [wtModalOpen, setWtModalOpen] = useState(false)
+
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
@@ -148,7 +151,9 @@ export default function App() {
       <header className={`header${hasAttention ? ' header-attention' : ''}`}>
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
+        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New Worktree</button>
       </header>
+      {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}
       <div className="body">
         <Sidebar
           sessions={sessions}
