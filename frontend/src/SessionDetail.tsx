@@ -35,8 +35,11 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [focusing, setFocusing] = useState(false)
   const [sendText, setSendText] = useState('')
   const [sending, setSending] = useState(false)
+  const [keysSent, setKeysSent] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setKeysSent(false) }, [session.status, session.last_output])
 
   useEffect(() => {
     if (historyOpen) {
@@ -78,6 +81,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     setSending(true)
     try {
       await fetch(`/api/sessions/keys?id=${session.session_id}&action=${action}`, { method: 'POST' })
+      setKeysSent(true)
     } catch { /* ignore */ }
     setSending(false)
   }
@@ -135,11 +139,15 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
       {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
           <div className="detail-input-label">許可選択</div>
-          <div className="detail-input-row">
-            <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
-            <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
-            <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
-          </div>
+          {keysSent ? (
+            <div className="keys-sent-msg">送信済み ✓</div>
+          ) : (
+            <div className="detail-input-row">
+              <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
+              <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
+              <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
+            </div>
+          )}
         </div>
       )}
 

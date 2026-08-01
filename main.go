@@ -700,8 +700,28 @@ end tell`, tty, cmds)
 		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Update status after successful send
+	res := strings.TrimSpace(string(result))
+	if res == "sent" {
+		s.mu.Lock()
+		if sess, ok := s.sessions[id]; ok {
+			if action == "allow" || action == "allow_always" {
+				sess.Status = "ai_working"
+			} else {
+				sess.Status = "idle"
+			}
+			sess.LastUpdated = time.Now()
+			s.sessions[id] = sess
+			data, _ := json.MarshalIndent(sess, "", "  ")
+			os.WriteFile(filepath.Join(sessionsDir(), id+".json"), data, 0644)
+		}
+		s.mu.Unlock()
+		s.broadcastSessions()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
+	json.NewEncoder(w).Encode(map[string]string{"result": res})
 }
 
 func encodeCWDPath(cwd string) string {

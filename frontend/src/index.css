@@ -307,6 +307,12 @@ body {
 .deny-btn { border-color: #f38ba8; color: #f38ba8; }
 .deny-btn:hover { background: rgba(243,139,168,0.15); }
 
+.keys-sent-msg {
+  color: #a6e3a1;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
 /* Input Section */
 .detail-input-section {
   margin-bottom: 16px;
