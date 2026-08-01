@@ -186,7 +186,7 @@ make install
 
 ## Worktree + sbx 連携
 
-Web UI の「+ New Worktree」ボタンまたは CLI から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
+Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
 ### 環境変数
 
@@ -194,7 +194,7 @@ Web UI・CLI 共通で以下の環境変数を使用する:
 
 - `CLAUDE_TABS_WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
 - `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
-- `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）
+- `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）。デフォルトでマウントしておきたいリポジトリなど
 - `CLAUDE_TABS_SBX_SETUP_CMD` — sbx 作成後に実行するセットアップコマンド（未設定ならスキップ、参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）
 - `CLAUDE_TABS_CLAUDE_PLUGINS_DIRS` — Claude plugins ディレクトリ（スペース区切りで複数指定可、未設定ならスキップ）
 
@@ -203,7 +203,7 @@ Web UI・CLI 共通で以下の環境変数を使用する:
 export CLAUDE_TABS_WORKTREE_BASE="$HOME/worktrees"
 export CLAUDE_TABS_SBX_TEMPLATE="my-sbx:latest"
 export CLAUDE_TABS_SBX_DEFAULT_MOUNTS="$HOME/dotfiles:ro $HOME/.claude-tabs $HOME/.claude-plugins"
-export CLAUDE_TABS_SBX_SETUP_CMD="/path/to/sbx-setup.sh"
+export CLAUDE_TABS_SBX_SETUP_CMD="$HOME/dotfiles/setup-dotfiles.sh" # CLAUDE_TABS_SBX_DEFAULT_MOUNTS でマウント済みのファイルなど
 export CLAUDE_TABS_CLAUDE_PLUGINS_DIRS="$HOME/claude-plugins $HOME/claude-plugins-extra"
 ```
 
