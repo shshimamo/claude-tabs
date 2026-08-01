@@ -166,12 +166,12 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               value={sendText}
               placeholder="入力を送信..."
               onChange={e => setSendText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && sendText.trim()) { e.preventDefault(); handleSendInput(sendText.trim()) } }}
+              onKeyDown={e => { if (e.key === 'Enter' && e.metaKey && sendText.trim()) { e.preventDefault(); handleSendInput(sendText.trim()) } }}
               disabled={sending}
               rows={2}
             />
             <button className="action-btn" onClick={() => handleSendInput(sendText.trim())} disabled={sending || !sendText.trim()}>
-              送信
+              送信(⌘+Enter)
             </button>
           </div>
         </div>
