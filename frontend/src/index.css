@@ -300,6 +300,47 @@ body {
 .action-btn:hover { background: #45475a; }
 .action-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* Input Section */
+.detail-input-section {
+  margin-bottom: 16px;
+  background: #181825;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.detail-input-label {
+  font-size: 11px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.detail-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.detail-send-input {
+  flex: 1;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  color: #cdd6f4;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  outline: none;
+}
+.detail-send-textarea {
+  resize: vertical;
+  min-height: 40px;
+}
+.detail-send-input:focus { border-color: #89b4fa; }
+.detail-send-input::placeholder { color: #6c7086; }
+
 /* History */
 .history-section {
   margin-top: 24px;

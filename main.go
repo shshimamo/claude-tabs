@@ -37,6 +37,8 @@ type Session struct {
 	ProjectName string    `json:"project_name"`
 	CustomName  string    `json:"custom_name,omitempty"`
 	TTY         string    `json:"tty,omitempty"`
+	LastOutput  string    `json:"last_output,omitempty"`
+	LastPrompt  string    `json:"last_prompt,omitempty"`
 }
 
 // HistoryMessage is a simplified conversation message
@@ -47,10 +49,12 @@ type HistoryMessage struct {
 
 // HookInput is the JSON received from Claude Code hooks via stdin
 type HookInput struct {
-	SessionID string         `json:"session_id"`
-	CWD       string         `json:"cwd"`
-	ToolName  string         `json:"tool_name"`
-	ToolInput map[string]any `json:"tool_input"`
+	SessionID            string         `json:"session_id"`
+	CWD                  string         `json:"cwd"`
+	ToolName             string         `json:"tool_name"`
+	ToolInput            map[string]any `json:"tool_input"`
+	LastAssistantMessage string         `json:"last_assistant_message"`
+	Prompt               string         `json:"prompt"`
 }
 
 func sessionsDir() string {
@@ -151,6 +155,7 @@ func handleHook(args []string) {
 	case "SessionStart":
 		session.Status = "idle"
 		session.Question = ""
+		session.LastOutput = ""
 		// Mark old sessions with same PID as terminated
 		if session.PID > 0 {
 			markOldSessionsTerminated(session.PID, session.SessionID)
@@ -158,6 +163,8 @@ func handleHook(args []string) {
 	case "UserPromptSubmit":
 		session.Status = "ai_working"
 		session.Question = ""
+		session.LastOutput = ""
+		session.LastPrompt = input.Prompt
 	case "AskUserQuestion":
 		session.Status = "waiting_input"
 		if q, ok := input.ToolInput["question"].(string); ok {
@@ -166,9 +173,18 @@ func handleHook(args []string) {
 	case "PermissionRequest":
 		session.Status = "permission_required"
 		session.Question = ""
+		// Show tool name and input
+		toolInfo := input.ToolName
+		if input.ToolInput != nil {
+			if b, err := json.Marshal(input.ToolInput); err == nil {
+				toolInfo += ": " + string(b)
+			}
+		}
+		session.LastOutput = toolInfo
 	case "Stop":
 		session.Status = "idle"
 		session.Question = ""
+		session.LastOutput = input.LastAssistantMessage
 	}
 
 	data, _ := json.MarshalIndent(session, "", "  ")
@@ -538,6 +554,73 @@ end tell`, tty)
 	json.NewEncoder(w).Encode(map[string]string{"result": result})
 }
 
+func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	text := r.URL.Query().Get("text")
+	if id == "" || text == "" {
+		http.Error(w, "id and text required", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	session, ok := s.sessions[id]
+	var pid int
+	var savedTTY string
+	if ok {
+		pid = session.PID
+		savedTTY = session.TTY
+	}
+	s.mu.RUnlock()
+
+	if !ok {
+		http.Error(w, "session not found", http.StatusBadRequest)
+		return
+	}
+
+	// Determine tty
+	tty := ""
+	if pid > 0 {
+		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
+			tty = "/dev/" + strings.TrimSpace(string(out))
+		}
+	}
+	if tty == "" {
+		tty = savedTTY
+	}
+	if tty == "" {
+		http.Error(w, "no tty available", http.StatusBadRequest)
+		return
+	}
+
+	// Send text + Enter via AppleScript
+	script := fmt.Sprintf(`
+tell application "iTerm2"
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "%s" then
+					tell s to write text "%s"
+					return "sent"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`, tty, strings.ReplaceAll(text, `"`, `\"`))
+
+	result, err := exec.Command("osascript", "-e", script).Output()
+	if err != nil {
+		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
+}
+
 func encodeCWDPath(cwd string) string {
 	return strings.ReplaceAll(cwd, "/", "-")
 }
@@ -707,6 +790,7 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/name", srv.handleRenameSession)
 	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
+	mux.HandleFunc("/api/sessions/input", srv.handleSendInput)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)

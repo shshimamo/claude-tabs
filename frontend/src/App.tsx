@@ -13,6 +13,8 @@ export type Session = {
   project_name: string
   custom_name?: string
   tty?: string
+  last_output?: string
+  last_prompt?: string
 }
 
 const NOTIFY_STATUSES: Record<string, string> = {

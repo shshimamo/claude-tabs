@@ -33,6 +33,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [history, setHistory] = useState<HistoryMessage[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [focusing, setFocusing] = useState(false)
+  const [sendText, setSendText] = useState('')
+  const [sending, setSending] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -70,6 +72,15 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const submitTTY = () => {
     setEditingTTY(false)
     onSetTTY(session.session_id, editTTY.trim())
+  }
+
+  const handleSendInput = async (text: string) => {
+    setSending(true)
+    try {
+      await fetch(`/api/sessions/input?id=${session.session_id}&text=${encodeURIComponent(text)}`, { method: 'POST' })
+    } catch { /* ignore */ }
+    setSending(false)
+    setSendText('')
   }
 
   const handleFocus = async () => {
@@ -113,10 +124,52 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         )}
       </div>
 
+      {['idle', 'waiting_input', 'permission_required'].includes(session.status) && (session.pid > 0 || session.tty) && (
+        <div className="detail-input-section">
+          <div className="detail-input-label">定型文</div>
+          <div className="detail-input-row">
+            <button className="action-btn" onClick={() => handleSendInput('yes')} disabled={sending}>Yes</button>
+            <button className="action-btn" onClick={() => handleSendInput('commit して')} disabled={sending}>Commit</button>
+            <button className="action-btn" onClick={() => handleSendInput('commit して push して')} disabled={sending}>Commit & Push</button>
+          </div>
+          <div className="detail-input-label" style={{ marginTop: 12 }}>自由入力</div>
+          <div className="detail-input-row">
+            <textarea
+              className="detail-send-input detail-send-textarea"
+              value={sendText}
+              placeholder="入力を送信..."
+              onChange={e => setSendText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && sendText.trim()) { e.preventDefault(); handleSendInput(sendText.trim()) } }}
+              disabled={sending}
+              rows={2}
+            />
+            <button className="action-btn" onClick={() => handleSendInput(sendText.trim())} disabled={sending || !sendText.trim()}>
+              送信
+            </button>
+          </div>
+        </div>
+      )}
+
       {session.question && (
         <div className="detail-question">
           <div className="detail-question-label">Question</div>
           <div className="detail-question-text">{session.question}</div>
+        </div>
+      )}
+
+      {session.last_prompt && (
+        <div className="detail-question">
+          <div className="detail-question-label" style={{ color: '#89b4fa' }}>User Input</div>
+          <div className="detail-question-text">{session.last_prompt}</div>
+        </div>
+      )}
+
+      {session.last_output && (
+        <div className="detail-question">
+          <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1' }}>
+            {session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}
+          </div>
+          <div className="detail-question-text">{session.last_output}</div>
         </div>
       )}
 
