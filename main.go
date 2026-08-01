@@ -621,6 +621,89 @@ end tell`, tty, strings.ReplaceAll(text, `"`, `\"`))
 	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
 }
 
+func (s *server) handleSendKeys(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	action := r.URL.Query().Get("action") // "allow", "allow_always", "deny"
+	if id == "" || action == "" {
+		http.Error(w, "id and action required", http.StatusBadRequest)
+		return
+	}
+
+	// Build AppleScript commands: down arrows (newline NO) then Enter
+	downArrow := `(ASCII character 27) & "[B"`
+	var cmds string
+	switch action {
+	case "allow":
+		// Option 1: already selected, just Enter
+		cmds = `tell s to write text ""`
+	case "allow_always":
+		// Option 2: down once + Enter
+		cmds = fmt.Sprintf("tell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text \"\"", downArrow)
+	case "deny":
+		// Option 3: down twice + Enter
+		cmds = fmt.Sprintf("tell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text \"\"", downArrow, downArrow)
+	default:
+		http.Error(w, "invalid action", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	session, ok := s.sessions[id]
+	var pid int
+	var savedTTY string
+	if ok {
+		pid = session.PID
+		savedTTY = session.TTY
+	}
+	s.mu.RUnlock()
+
+	if !ok {
+		http.Error(w, "session not found", http.StatusBadRequest)
+		return
+	}
+
+	tty := ""
+	if pid > 0 {
+		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
+			tty = "/dev/" + strings.TrimSpace(string(out))
+		}
+	}
+	if tty == "" {
+		tty = savedTTY
+	}
+	if tty == "" {
+		http.Error(w, "no tty available", http.StatusBadRequest)
+		return
+	}
+
+	script := fmt.Sprintf(`
+tell application "iTerm2"
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "%s" then
+					%s
+					return "sent"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`, tty, cmds)
+
+	result, err := exec.Command("osascript", "-e", script).Output()
+	if err != nil {
+		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
+}
+
 func encodeCWDPath(cwd string) string {
 	return strings.ReplaceAll(cwd, "/", "-")
 }
@@ -791,6 +874,7 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
 	mux.HandleFunc("/api/sessions/input", srv.handleSendInput)
+	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)

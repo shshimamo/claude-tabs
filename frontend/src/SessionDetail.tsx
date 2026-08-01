@@ -74,6 +74,14 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     onSetTTY(session.session_id, editTTY.trim())
   }
 
+  const handleSendKeys = async (action: string) => {
+    setSending(true)
+    try {
+      await fetch(`/api/sessions/keys?id=${session.session_id}&action=${action}`, { method: 'POST' })
+    } catch { /* ignore */ }
+    setSending(false)
+  }
+
   const handleSendInput = async (text: string) => {
     setSending(true)
     try {
@@ -123,6 +131,17 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           </button>
         )}
       </div>
+
+      {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
+        <div className="detail-input-section">
+          <div className="detail-input-label">許可選択</div>
+          <div className="detail-input-row">
+            <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
+            <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
+            <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
+          </div>
+        </div>
+      )}
 
       {['idle', 'waiting_input', 'permission_required'].includes(session.status) && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
