@@ -15,6 +15,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
 - 会話履歴の表示（JSONL トランスクリプト読み込み）
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
+- デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
 - アテンション UI（ヘッダー色変化 + サイドバーパルス）
 - 定型文のカスタマイズ（`~/.claude-tabs/presets.json`）
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
