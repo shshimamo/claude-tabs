@@ -151,7 +151,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         </div>
       )}
 
-      {['idle', 'waiting_input', 'permission_required'].includes(session.status) && (session.pid > 0 || session.tty) && (
+      {['idle', 'waiting_input'].includes(session.status) && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
           <div className="detail-input-label">定型文</div>
           <div className="detail-input-row">
