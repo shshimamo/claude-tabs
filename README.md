@@ -188,7 +188,36 @@ make install
 
 Web UI の「+ New Worktree」ボタンまたは CLI から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
+### 環境変数
+
+Web UI・CLI 共通で以下の環境変数を使用する:
+
+- `CLAUDE_TABS_WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
+- `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
+- `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）
+- `CLAUDE_TABS_SBX_SETUP_CMD` — sbx 作成後に実行するセットアップコマンド（未設定ならスキップ、参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）
+- `CLAUDE_TABS_CLAUDE_PLUGINS_DIRS` — Claude plugins ディレクトリ（スペース区切りで複数指定可、未設定ならスキップ）
+
+```sh
+# 設定例（~/.zshrc や ~/.zsh_local/*.zsh 等に追加）
+export CLAUDE_TABS_WORKTREE_BASE="$HOME/worktrees"
+export CLAUDE_TABS_SBX_TEMPLATE="my-sbx:latest"
+export CLAUDE_TABS_SBX_DEFAULT_MOUNTS="$HOME/dotfiles:ro $HOME/.claude-tabs $HOME/.claude-plugins"
+export CLAUDE_TABS_SBX_SETUP_CMD="/path/to/sbx-setup.sh"
+export CLAUDE_TABS_CLAUDE_PLUGINS_DIRS="$HOME/claude-plugins $HOME/claude-plugins-extra"
+```
+
+## CLI モード
+
+```sh
+claude-tabs                    # ブラウザを開く（サーバーが未起動なら自動起動）
+claude-tabs --server           # サーバーモードで直接起動
+claude-tabs hook <EventType>   # hook ハンドラー（Claude Code から呼ばれる）
+```
+
 ### CLI
+
+worktree生成をCLIで行う場合の参考例。(claude-tabs とは関係はない独立した関数): [`examples/zsh-functions.sh`](examples/zsh-functions.sh)
 
 ```sh
 # worktree作成 + sbx作成 + iTerm新タブでclaude起動
@@ -199,20 +228,6 @@ wtcd
 
 # worktree + sbx を削除
 wtrm
-```
-
-環境変数:
-- `CLAUDE_TABS_WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
-- `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
-- `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）
-- `CLAUDE_TABS_CLAUDE_PLUGINS_DIRS` — Claude plugins ディレクトリ（スペース区切りで複数指定可、未設定ならスキップ）
-
-## CLI モード
-
-```sh
-claude-tabs                    # ブラウザを開く（サーバーが未起動なら自動起動）
-claude-tabs --server           # サーバーモードで直接起動
-claude-tabs hook <EventType>   # hook ハンドラー（Claude Code から呼ばれる）
 ```
 
 ## 技術スタック

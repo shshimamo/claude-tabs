@@ -997,8 +997,10 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// setup-dotfiles + plugins (best effort)
-	exec.Command("sbx", "exec", sbxName, "sh", "-c", "command -v setup-dotfiles >/dev/null && setup-dotfiles 2>/dev/null").Run()
+	// setup command (best effort)
+	if setupCmd := os.Getenv("CLAUDE_TABS_SBX_SETUP_CMD"); setupCmd != "" {
+		exec.Command("sbx", "exec", sbxName, "sh", "-c", setupCmd).Run()
+	}
 	if pluginsDirs := os.Getenv("CLAUDE_TABS_CLAUDE_PLUGINS_DIRS"); pluginsDirs != "" {
 		for _, pluginsDir := range strings.Fields(pluginsDirs) {
 			// marketplace name from .claude-plugin/marketplace.json
