@@ -205,7 +205,7 @@ wtrm
 - `CLAUDE_TABS_WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
 - `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
 - `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）
-- `CLAUDE_TABS_CLAUDE_PLUGINS_DIR` — Claude plugins ディレクトリ（未設定ならスキップ）
+- `CLAUDE_TABS_CLAUDE_PLUGINS_DIRS` — Claude plugins ディレクトリ（スペース区切りで複数指定可、未設定ならスキップ）
 
 ## CLI モード
 

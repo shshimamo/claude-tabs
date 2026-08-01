@@ -968,6 +968,12 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 				respond(http.StatusInternalServerError, "git worktree add failed: "+string(out))
 				return
 			}
+		} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
+			// local branch exists
+			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
+				respond(http.StatusInternalServerError, "git worktree add failed: "+string(out))
+				return
+			}
 		} else {
 			// new branch
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "-b", branch).CombinedOutput(); err != nil {
@@ -993,21 +999,23 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 
 	// setup-dotfiles + plugins (best effort)
 	exec.Command("sbx", "exec", sbxName, "sh", "-c", "command -v setup-dotfiles >/dev/null && setup-dotfiles 2>/dev/null").Run()
-	if pluginsDir := os.Getenv("CLAUDE_TABS_CLAUDE_PLUGINS_DIR"); pluginsDir != "" {
-		// marketplace name from .claude-plugin/marketplace.json
-		marketplaceName := ""
-		if mdata, err := os.ReadFile(filepath.Join(pluginsDir, ".claude-plugin", "marketplace.json")); err == nil {
-			var mj struct{ Name string `json:"name"` }
-			if json.Unmarshal(mdata, &mj) == nil && mj.Name != "" {
-				marketplaceName = mj.Name
+	if pluginsDirs := os.Getenv("CLAUDE_TABS_CLAUDE_PLUGINS_DIRS"); pluginsDirs != "" {
+		for _, pluginsDir := range strings.Fields(pluginsDirs) {
+			// marketplace name from .claude-plugin/marketplace.json
+			marketplaceName := ""
+			if mdata, err := os.ReadFile(filepath.Join(pluginsDir, ".claude-plugin", "marketplace.json")); err == nil {
+				var mj struct{ Name string `json:"name"` }
+				if json.Unmarshal(mdata, &mj) == nil && mj.Name != "" {
+					marketplaceName = mj.Name
+				}
 			}
-		}
-		if marketplaceName != "" {
-			exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pluginsDir).Run()
-			if entries, err := os.ReadDir(filepath.Join(pluginsDir, "plugins")); err == nil {
-				for _, e := range entries {
-					if e.IsDir() {
-						exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", e.Name()+"@"+marketplaceName).Run()
+			if marketplaceName != "" {
+				exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pluginsDir).Run()
+				if entries, err := os.ReadDir(filepath.Join(pluginsDir, "plugins")); err == nil {
+					for _, e := range entries {
+						if e.IsDir() {
+							exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", e.Name()+"@"+marketplaceName).Run()
+						}
 					}
 				}
 			}
