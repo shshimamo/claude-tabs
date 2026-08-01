@@ -17,7 +17,7 @@ export type Session = {
 
 const NOTIFY_STATUSES: Record<string, string> = {
   idle: '入力待ち',
-  waiting_input: '質問待ち',
+  waiting_input: '回答待ち',
   permission_required: '許可待ち',
 }
 
