@@ -92,7 +92,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: claude-tabs worktree create <repo> <branch>")
 			os.Exit(1)
 		}
-		if err := worktreeCreate(repo, branch); err != nil {
+		if _, _, err := worktreeCreate(repo, branch); err != nil {
 			fmt.Fprintf(os.Stderr, "claude-tabs: %v\n", err)
 			os.Exit(1)
 		}
@@ -238,17 +238,19 @@ func markOldSessionsTerminated(pid int, currentSessionID string) {
 // --- Server ---
 
 type server struct {
-	mu       sync.RWMutex
-	sessions map[string]*Session
-	clients  map[*websocket.Conn]bool
-	clientMu sync.Mutex
-	upgrader websocket.Upgrader
+	mu         sync.RWMutex
+	sessions   map[string]*Session
+	clients    map[*websocket.Conn]bool
+	clientMu   sync.Mutex
+	upgrader   websocket.Upgrader
+	pendingTTY map[string]string // CWD -> TTY (auto-set on session creation)
 }
 
 func newServer() *server {
 	return &server{
-		sessions: make(map[string]*Session),
-		clients:  make(map[*websocket.Conn]bool),
+		sessions:   make(map[string]*Session),
+		clients:    make(map[*websocket.Conn]bool),
+		pendingTTY: make(map[string]string),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -320,6 +322,16 @@ func (s *server) handleFileChange(filePath string) {
 	}
 
 	s.mu.Lock()
+	if session.TTY == "" && session.CWD != "" {
+		if tty, ok := s.pendingTTY[session.CWD]; ok {
+			session.TTY = tty
+			delete(s.pendingTTY, session.CWD)
+			// persist TTY to session file
+			if updated, err := json.Marshal(&session); err == nil {
+				os.WriteFile(filePath, updated, 0644)
+			}
+		}
+	}
 	s.sessions[session.SessionID] = &session
 	s.mu.Unlock()
 	s.broadcastSessions()
@@ -1053,13 +1065,13 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 }
 
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
-func worktreeCreate(repo, branch string) error {
+func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 	cfg := loadConfig()
 
 	// ghqからリポジトリ検索
 	ghqOut, err := exec.Command("ghq", "list", "-p").Output()
 	if err != nil {
-		return fmt.Errorf("ghq list failed: %w", err)
+		return "", "", fmt.Errorf("ghq list failed: %w", err)
 	}
 	var repoPath string
 	for _, line := range strings.Split(strings.TrimSpace(string(ghqOut)), "\n") {
@@ -1069,7 +1081,7 @@ func worktreeCreate(repo, branch string) error {
 		}
 	}
 	if repoPath == "" {
-		return fmt.Errorf("repository not found: %s", repo)
+		return "", "", fmt.Errorf("repository not found: %s", repo)
 	}
 
 	// worktree base
@@ -1077,7 +1089,7 @@ func worktreeCreate(repo, branch string) error {
 	if wtBase == "" {
 		ghqRoot, err := exec.Command("ghq", "root").Output()
 		if err != nil {
-			return fmt.Errorf("ghq root failed: %w", err)
+			return "", "", fmt.Errorf("ghq root failed: %w", err)
 		}
 		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
 	}
@@ -1089,19 +1101,19 @@ func worktreeCreate(repo, branch string) error {
 		fmt.Println("Worktree already exists:", wtPath)
 	} else {
 		if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
-			return fmt.Errorf("git fetch failed: %s", out)
+			return "", "", fmt.Errorf("git fetch failed: %s", out)
 		}
 		if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
-				return fmt.Errorf("git worktree add failed: %s", out)
+				return "", "", fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
-				return fmt.Errorf("git worktree add failed: %s", out)
+				return "", "", fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else {
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "-b", branch).CombinedOutput(); err != nil {
-				return fmt.Errorf("git worktree add (new branch) failed: %s", out)
+				return "", "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
 			}
 		}
 	}
@@ -1116,7 +1128,7 @@ func worktreeCreate(repo, branch string) error {
 	sbxArgs = append(sbxArgs, "claude")
 	sbxArgs = append(sbxArgs, paths...)
 	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
-		return fmt.Errorf("sbx create failed: %s", out)
+		return "", "", fmt.Errorf("sbx create failed: %s", out)
 	}
 
 	// setup commands (best effort)
@@ -1154,20 +1166,23 @@ func worktreeCreate(repo, branch string) error {
 		}
 	}
 
-	// iTerm新タブでclaude起動
+	// iTerm新タブでclaude起動、TTYを取得
 	script := fmt.Sprintf(`
 tell application "iTerm2"
 	tell current window
 		create tab with default profile
 		tell current session of current tab
 			write text "sbx run --name %s claude"
+			return tty
 		end tell
 	end tell
 end tell`, sbxName)
-	exec.Command("osascript", "-e", script).Run()
+	ttyOut, _ := exec.Command("osascript", "-e", script).Output()
+	tty = strings.TrimSpace(string(ttyOut))
+	cwdPath = wtPath
 
 	fmt.Println("Worktree created and Claude started:", sbxName)
-	return nil
+	return
 }
 
 func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
@@ -1183,12 +1198,18 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := worktreeCreate(repo, branch); err != nil {
+	tty, cwdPath, err := worktreeCreate(repo, branch)
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: " + repo + "-" + branch})
+	if tty != "" && cwdPath != "" {
+		s.mu.Lock()
+		s.pendingTTY[cwdPath] = tty
+		s.mu.Unlock()
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: wt-" + repo + "-" + branch})
 }
 
 func runServer() {
