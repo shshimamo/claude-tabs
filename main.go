@@ -895,22 +895,6 @@ var defaultPresets = []Preset{
 	{Label: "Commit & Push", Text: "commit して push して"},
 }
 
-func presetsFilePath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude-tabs", "presets.json")
-}
-
-func loadPresets() []Preset {
-	data, err := os.ReadFile(presetsFilePath())
-	if err != nil {
-		return defaultPresets
-	}
-	var presets []Preset
-	if err := json.Unmarshal(data, &presets); err != nil {
-		return defaultPresets
-	}
-	return presets
-}
 
 type PluginConfig struct {
 	Source  string   `json:"source"`
@@ -918,6 +902,7 @@ type PluginConfig struct {
 }
 
 type Config struct {
+	Presets          []Preset       `json:"presets"`
 	WorktreeBase     string         `json:"worktree_base"`
 	SbxTemplate      string         `json:"sbx_template"`
 	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
@@ -932,6 +917,7 @@ func configFilePath() string {
 
 func loadConfig() Config {
 	cfg := Config{
+		Presets:     defaultPresets,
 		SbxTemplate: "my-sbx:latest",
 	}
 	data, err := os.ReadFile(configFilePath())
@@ -939,6 +925,9 @@ func loadConfig() Config {
 		return cfg
 	}
 	json.Unmarshal(data, &cfg)
+	if len(cfg.Presets) == 0 {
+		cfg.Presets = defaultPresets
+	}
 	if cfg.SbxTemplate == "" {
 		cfg.SbxTemplate = "my-sbx:latest"
 	}
@@ -964,7 +953,7 @@ func expandHome(path string) string {
 
 func handlePresets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(loadPresets())
+	json.NewEncoder(w).Encode(loadConfig().Presets)
 }
 
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.

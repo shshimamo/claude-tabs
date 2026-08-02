@@ -1,4 +1,9 @@
 {
+  "presets": [
+    { "label": "Yes", "text": "yes" },
+    { "label": "Commit", "text": "commit して" },
+    { "label": "Commit & Push", "text": "commit して push して" }
+  ],
   "worktree_base": "",
   "sbx_template": "my-sbx:latest",
   "sbx_default_mounts": [

@@ -17,7 +17,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
 - アテンション UI（ヘッダー色変化 + サイドバーパルス）
-- 定型文のカスタマイズ（`~/.claude-tabs/presets.json`）
+- 定型文のカスタマイズ（`~/.claude-tabs/config.json`）
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
 
 ## アーキテクチャ
@@ -67,8 +67,7 @@ claude-tabs/
 ├── sessions/                # セッション状態 JSON（hook が書き込み）
 │   ├── {session_id}.json
 │   └── ...
-├── config.json              # Worktree + sbx 設定（任意）
-└── presets.json             # 定型文設定（任意）
+└── config.json              # 全設定（定型文 / Worktree / sbx / プラグイン）
 ```
 
 ## セットアップ
@@ -174,17 +173,19 @@ make install
 
 ## 定型文カスタマイズ
 
-`~/.claude-tabs/presets.json` でブラウザ UI の定型文ボタンをカスタマイズできる:
+`~/.claude-tabs/config.json` の `presets` でブラウザ UI の定型文ボタンをカスタマイズできる:
 
 ```json
-[
-  { "label": "Yes", "text": "yes" },
-  { "label": "Commit", "text": "commit して" },
-  { "label": "Commit & Push", "text": "commit して push して" }
-]
+{
+  "presets": [
+    { "label": "Yes", "text": "yes" },
+    { "label": "Commit", "text": "commit して" },
+    { "label": "Commit & Push", "text": "commit して push して" }
+  ]
+}
 ```
 
-ファイルがない場合は上記デフォルトが使用される。
+未設定の場合は上記デフォルトが使用される。
 
 ## Worktree + sbx 連携
 
@@ -192,30 +193,7 @@ Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 
 
 ### 設定
 
-`~/.claude-tabs/config.json` で Web UI・CLI 共通の設定を行う（参考: [`examples/config.json`](examples/config.json)）:
-
-```json
-{
-  "worktree_base": "",
-  "sbx_template": "my-sbx:latest",
-  "sbx_default_mounts": [
-    "~/dotfiles:ro",
-    "~/.claude-tabs",
-    "~/.claude-plugins"
-  ],
-  "sbx_setup_cmd": "~/dotfiles/setup.sh",
-  "plugins": [
-    {
-      "source": "~/claude-plugins",
-      "plugins": ["auto"]
-    },
-    {
-      "source": "user/repo",
-      "plugins": ["plugin-a", "plugin-b"]
-    }
-  ]
-}
-```
+Worktree + sbx の設定も `~/.claude-tabs/config.json` で行う（参考: [`examples/config.json`](examples/config.json)）:
 
 | キー | 説明 |
 |------|------|
