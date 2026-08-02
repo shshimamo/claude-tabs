@@ -9,7 +9,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - セッション状態のリアルタイム表示（AI作業中 / 回答待ち / 許可待ち / 入力待ち / 終了）
 - ステータス別グルーピング
 - セッション名のカスタマイズ
-- iTerm2 ターミナルフォーカス（AppleScript）
+- ターミナルフォーカス（iTerm2 / Terminal.app / カスタム対応）
 - ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
 - 許可プロンプトの操作（Allow / Allow Always / Deny）
 - AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
@@ -18,7 +18,9 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
 - アテンション UI（ヘッダー色変化 + サイドバーパルス）
 - 定型文のカスタマイズ（`~/.claude-tabs/config.json`）
+- Settings モーダル（config.json の Web UI 編集）
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
+- セッション削除時の Worktree / sbx 同時削除
 
 ## アーキテクチャ
 
@@ -55,6 +57,8 @@ claude-tabs/
         ├── Sidebar.tsx      # セッション一覧（ステータス別グループ）
         ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
         ├── WorktreeModal.tsx # Worktree作成モーダル
+        ├── DeleteConfirmModal.tsx # セッション削除確認（Worktree/sbx）
+        ├── ConfigModal.tsx  # Settings モーダル（config.json 編集）
         └── index.css        # Catppuccin ダークテーマ
 ```
 
@@ -251,6 +255,8 @@ claude-tabs worktree create <repo> <branch>  # worktree + sbx + Claude 起動
 ### zsh 関数
 
 ターミナルから使う場合の参考例: [`examples/zsh-functions.sh`](examples/zsh-functions.sh)
+
+使用ツール: `fzf`（wtcd / wtrm）、`sbx`（wt-sbx / wtrm）
 
 ```sh
 wt-sbx <repo> <branch>  # claude-tabs worktree create のラッパー

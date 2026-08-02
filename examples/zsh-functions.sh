@@ -5,9 +5,8 @@
 #
 # 前提:
 #   - claude-tabs バイナリ (~/.claude-tabs/bin/claude-tabs)
-#   - ghq (リポジトリ管理)
-#   - fzf (インタラクティブ選択)
-#   - sbx (Docker sandbox)
+#   - fzf (インタラクティブ選択、wtcd / wtrm で使用)
+#   - sbx (Docker sandbox、wt-sbx / wtrm で使用)
 #
 # 設定:
 #   - ~/.claude-tabs/config.json（詳細は README 参照）
@@ -29,7 +28,7 @@ function wtcd() {
     wt_base=$(python3 -c "import json,os; c=json.load(open('$config_json')); b=c.get('worktree_base',''); print(os.path.expanduser(b) if b else '')" 2>/dev/null)
   fi
   if [[ -z "$wt_base" ]]; then
-    wt_base="$(ghq root)/worktrees"
+    wt_base="$HOME/worktrees"
   fi
   if [[ ! -d "$wt_base" ]]; then
     echo "No worktrees directory: $wt_base"
@@ -52,7 +51,7 @@ function wtrm() {
     wt_base=$(python3 -c "import json,os; c=json.load(open('$config_json')); b=c.get('worktree_base',''); print(os.path.expanduser(b) if b else '')" 2>/dev/null)
   fi
   if [[ -z "$wt_base" ]]; then
-    wt_base="$(ghq root)/worktrees"
+    wt_base="$HOME/worktrees"
   fi
   if [[ ! -d "$wt_base" ]]; then
     echo "No worktrees directory: $wt_base"
@@ -68,7 +67,7 @@ function wtrm() {
   local wt_path="${wt_base}/${selected}"
   local repo=$(dirname "$selected")
   local branch=$(basename "$selected")
-  local sbx_name="${repo}-${branch}"
+  local sbx_name="wt-${repo}-${branch}"
 
   # sbx 削除 (存在すれば)
   if sbx ls -q 2>/dev/null | grep -qx "$sbx_name"; then
@@ -78,5 +77,5 @@ function wtrm() {
 
   # worktree 削除
   echo "Removing worktree: $wt_path"
-  git -C "$(ghq list -p | grep "/${repo}$" | head -1)" worktree remove "$wt_path" || rm -rf "$wt_path"
+  git -C "$wt_path" worktree remove "$wt_path" 2>/dev/null || rm -rf "$wt_path"
 }
