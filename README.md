@@ -25,6 +25,10 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
 - セッション削除時の Worktree / sbx 同時削除
 
+### Attach sbx
+- 既存 sbx にアタッチして任意のリポジトリで Claude 起動
+- `repository_base` 配下の Git リポジトリを自動検出・フィルタ選択
+
 ### 設定・表示
 - AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
 - 会話履歴の表示（JSONL トランスクリプト読み込み）
@@ -66,6 +70,7 @@ claude-tabs/
         ├── Sidebar.tsx      # セッション一覧（ステータス別グループ）
         ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
         ├── WorktreeModal.tsx # Worktree作成モーダル
+        ├── SbxRunModal.tsx  # 既存 sbx アタッチモーダル
         ├── DeleteConfirmModal.tsx # セッション削除確認（Worktree/sbx）
         ├── ConfigModal.tsx  # Settings モーダル（config.json 編集）
         └── index.css        # Catppuccin ダークテーマ
@@ -210,6 +215,7 @@ make install
 | `plugins`              | Worktree + sbx 連携 | プラグイン設定の配列 | `[]` |
 | `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
+| `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
 | `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
 | `terminal_presets`     | ターミナル連携           | ターミナル操作の AppleScript 定義（カスタムターミナル対応用） | 内蔵(iterm2, terminal) |
 
