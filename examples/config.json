@@ -15,6 +15,10 @@
     ["setup-dotfiles"],
     ["claude", "mcp", "add", "my-server", "--", "npx", "my-mcp-server"]
   ],
+  "sbx_kits": [
+    "./my-kit/",
+    "ghcr.io/myorg/my-kit:1.0"
+  ],
   "plugins": [
     {
       "source": "~/claude-plugins",

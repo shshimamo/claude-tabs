@@ -1,0 +1,36 @@
+# sbx kit の参考例
+# config.json の sbx_kits にこのディレクトリを指定して使う:
+#   "sbx_kits": ["~/path/to/kit-example/"]
+#
+# 参考: https://docs.docker.com/ai/sandboxes/customize/kits/
+
+schemaVersion: "1"
+kind: mixin
+name: my-dev-kit
+displayName: My Dev Kit
+description: 開発環境セットアップ用 kit
+
+# install: sbx 作成時に実行（イメージにキャッシュされる）
+# startup: sbx 起動時に毎回実行
+commands:
+  install:
+    - command: "apt-get update && apt-get install -y jq ripgrep"
+      description: 開発ツールのインストール
+  startup:
+    - command: ["my-daemon"]
+      background: true
+      description: バックグラウンドデーモンの起動
+
+# 環境変数
+environment:
+  variables:
+    EDITOR: vim
+    MY_CUSTOM_VAR: hello
+
+# ネットワーク許可/拒否ドメイン
+network:
+  allowedDomains:
+    - pypi.org
+    - registry.npmjs.org
+  deniedDomains:
+    - telemetry.example.com

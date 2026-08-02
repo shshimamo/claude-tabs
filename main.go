@@ -907,6 +907,7 @@ type Config struct {
 	SbxTemplate      string         `json:"sbx_template"`
 	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
 	SbxPostCreateCmds [][]string `json:"sbx_post_create_cmds"`
+	SbxKits           []string   `json:"sbx_kits"`
 	Plugins          []PluginConfig `json:"plugins"`
 }
 
@@ -1017,7 +1018,11 @@ func worktreeCreate(repo, branch string) error {
 	// sbx create
 	paths := []string{wtPath}
 	paths = append(paths, cfg.SbxDefaultMounts...)
-	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.SbxTemplate, "claude"}
+	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.SbxTemplate}
+	for _, kit := range cfg.SbxKits {
+		sbxArgs = append(sbxArgs, "--kit", kit)
+	}
+	sbxArgs = append(sbxArgs, "claude")
 	sbxArgs = append(sbxArgs, paths...)
 	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
 		return fmt.Errorf("sbx create failed: %s", out)
