@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -1064,6 +1065,41 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(loadConfig().Presets)
 }
 
+func handleConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		data, err := os.ReadFile(configFilePath())
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("{}"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+	case http.MethodPut:
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "read error", http.StatusBadRequest)
+			return
+		}
+		// validate JSON
+		var v any
+		if json.Unmarshal(body, &v) != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		// pretty print
+		formatted, _ := json.MarshalIndent(v, "", "  ")
+		if err := os.WriteFile(configFilePath(), append(formatted, '\n'), 0644); err != nil {
+			http.Error(w, "write error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
 func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 	cfg := loadConfig()
@@ -1244,6 +1280,7 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 	mux.HandleFunc("/api/worktree/create", srv.handleWorktreeCreate)
 	mux.HandleFunc("/api/presets", handlePresets)
+	mux.HandleFunc("/api/config", handleConfig)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)
 

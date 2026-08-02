@@ -541,3 +541,29 @@ body {
   font-size: 12px;
   color: #a6adc8;
 }
+
+.config-modal {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+}
+
+.config-editor {
+  width: 100%;
+  min-height: 400px;
+  background: #181825;
+  color: #cdd6f4;
+  border: 1px solid #313244;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.config-editor:focus {
+  border-color: #89b4fa;
+  outline: none;
+}

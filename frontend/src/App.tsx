@@ -3,6 +3,7 @@ import Sidebar from './Sidebar'
 import SessionDetail from './SessionDetail'
 import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
+import ConfigModal from './ConfigModal'
 
 export type Session = {
   session_id: string
@@ -171,6 +172,7 @@ export default function App() {
   }, [])
 
   const [wtModalOpen, setWtModalOpen] = useState(false)
+  const [configOpen, setConfigOpen] = useState(false)
 
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
@@ -182,8 +184,10 @@ export default function App() {
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
         <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New Worktree</button>
+        <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}
+      {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}
         onConfirm={(removeWt, removeSbx) => executeDelete(deleteConfirm.id, removeWt, removeSbx)}
