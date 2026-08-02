@@ -906,7 +906,7 @@ type Config struct {
 	WorktreeBase     string         `json:"worktree_base"`
 	SbxTemplate      string         `json:"sbx_template"`
 	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
-	SbxSetupCmd      string         `json:"sbx_setup_cmd"`
+	SbxPostCreateCmd      string         `json:"sbx_post_create_cmd"`
 	Plugins          []PluginConfig `json:"plugins"`
 }
 
@@ -932,7 +932,7 @@ func loadConfig() Config {
 		cfg.SbxTemplate = "my-sbx:latest"
 	}
 	cfg.WorktreeBase = expandHome(cfg.WorktreeBase)
-	cfg.SbxSetupCmd = expandHome(cfg.SbxSetupCmd)
+	cfg.SbxPostCreateCmd = expandHome(cfg.SbxPostCreateCmd)
 	for i := range cfg.SbxDefaultMounts {
 		cfg.SbxDefaultMounts[i] = expandHome(cfg.SbxDefaultMounts[i])
 	}
@@ -1020,8 +1020,8 @@ func worktreeCreate(repo, branch string) error {
 	}
 
 	// setup command (best effort)
-	if cfg.SbxSetupCmd != "" {
-		exec.Command("sbx", "exec", sbxName, "sh", "-c", cfg.SbxSetupCmd).Run()
+	if cfg.SbxPostCreateCmd != "" {
+		exec.Command("sbx", "exec", sbxName, "sh", "-c", cfg.SbxPostCreateCmd).Run()
 	}
 
 	// plugins install

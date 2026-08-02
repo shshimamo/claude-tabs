@@ -11,7 +11,7 @@
     "~/.claude-tabs",
     "~/.claude-plugins"
   ],
-  "sbx_setup_cmd": "~/dotfiles/setup.sh",
+  "sbx_post_create_cmd": "~/dotfiles/setup.sh",
   "plugins": [
     {
       "source": "~/claude-plugins",
