@@ -8,8 +8,7 @@
   "sbx_template": "my-sbx:latest",
   "sbx_default_mounts": [
     "~/dotfiles:ro",
-    "~/.claude-tabs",
-    "~/.claude-plugins"
+    "~/claude-tabs:ro"
   ],
   "sbx_post_create_cmds": [
     ["setup-dotfiles"],
