@@ -6,7 +6,7 @@
 #   1. このファイルをコピーして自分の環境に合わせて編集
 #   2. sbx のマウントパスに含める (sbx_default_mounts 等)
 #   3. config.json で設定:
-#      "sbx_post_create_cmd": "/path/to/sbx-setup.sh"
+#      "sbx_post_create_cmd": ["/path/to/sbx-setup.sh"]
 
 # --- 設定 ---
 # dotfiles のマウント先パス（SBX_DEFAULT_MOUNTS でマウントしておく）
