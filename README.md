@@ -235,6 +235,16 @@ config.json 表の `Worktree + sbx 連携` で設定。
 
 Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
+#### sbx 側の必須セットアップ
+
+1. Linux 用 hooks バイナリをビルド・配置（`make install-hook-linux`）
+2. sbx 内の `~/.claude/settings.json` に Linux 用 hooks 設定を追加
+   - hooks 設定は `sbx_post_create_cmds` に含めることで自動化できる（参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）。
+
+`~/.claude-tabs` のマウントとシンボリックリンク作成はコードで自動実行されるため手動設定は不要。
+
+
+
 ### ターミナル設定
 
 config.json 表の `ターミナル設定` で設定。

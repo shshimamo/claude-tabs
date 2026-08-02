@@ -1228,7 +1228,8 @@ func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 	}
 
 	// sbx create
-	paths := []string{wtPath}
+	claudeTabsDir := expandHome("~/.claude-tabs")
+	paths := []string{wtPath, claudeTabsDir}
 	paths = append(paths, cfg.SbxDefaultMounts...)
 	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.SbxTemplate}
 	for _, kit := range cfg.SbxKits {
@@ -1239,6 +1240,9 @@ func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
 		return "", "", fmt.Errorf("sbx create failed: %s", out)
 	}
+
+	// ~/.claude-tabs symlink (マウントパスがホスト側パスになるため)
+	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
 
 	// setup commands (best effort)
 	for _, cmd := range cfg.SbxPostCreateCmds {
