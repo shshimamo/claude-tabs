@@ -70,6 +70,17 @@ claude-tabs/
 └── config.json              # 全設定（定型文 / Worktree / sbx / プラグイン）
 ```
 
+## 前提ツール
+
+| ツール | 用途 | 必須 |
+|--------|------|------|
+| Go | ビルド | ○ |
+| Node.js + pnpm | フロントエンドビルド | ○ |
+| Claude Code | セッション管理対象 | ○ |
+| macOS + osascript | ターミナル操作（フォーカス・入力送信） | ○ |
+| git | Worktree 作成・削除 | Worktree 機能使用時 |
+| sbx | サンドボックス環境 | Worktree + sbx 連携時 |
+
 ## 起動手順
 
 ### 1. ビルド & インストール
