@@ -6,21 +6,30 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 
 ## 機能
 
+### セッション管理
 - セッション状態のリアルタイム表示（AI作業中 / 回答待ち / 許可待ち / 入力待ち / 終了）
 - ステータス別グルーピング
 - セッション名のカスタマイズ
+- 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
+
+### ターミナル操作
 - ターミナルフォーカス（iTerm2 / Terminal.app / カスタム対応）
 - ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
 - 許可プロンプトの操作（Allow / Allow Always / Deny）
-- AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
-- 会話履歴の表示（JSONL トランスクリプト読み込み）
-- 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
+
+### 通知
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
 - アテンション UI（ヘッダー色変化 + サイドバーパルス）
-- 定型文のカスタマイズ（`~/.claude-tabs/config.json`）
-- Settings モーダル（config.json の Web UI 編集）
+
+### Worktree + sbx
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
 - セッション削除時の Worktree / sbx 同時削除
+
+### 設定・表示
+- AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
+- 会話履歴の表示（JSONL トランスクリプト読み込み）
+- 定型文のカスタマイズ（`~/.claude-tabs/config.json`）
+- Settings モーダル（config.json の Web UI 編集）
 
 ## アーキテクチャ
 
