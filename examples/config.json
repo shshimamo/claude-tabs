@@ -32,5 +32,22 @@
       "source": "https://github.com/someone/plugins#v1.0.0",
       "plugins": ["plugin-x"]
     }
-  ]
+  ],
+  "terminal": "iterm2",
+  "terminal_presets": {
+    "iterm2": {
+      "focus": "tell application \"iTerm2\"\n\tactivate\n\trepeat with w in windows\n\t\trepeat with t in tabs of w\n\t\t\trepeat with s in sessions of t\n\t\t\t\tif tty of s is \"{{TTY}}\" then\n\t\t\t\t\tselect t\n\t\t\t\t\ttell w to select\n\t\t\t\t\treturn \"found\"\n\t\t\t\tend if\n\t\t\tend repeat\n\t\tend repeat\n\tend repeat\n\treturn \"not_found\"\nend tell",
+      "activate": "tell application \"iTerm2\" to activate",
+      "input": "tell application \"iTerm2\"\n\trepeat with w in windows\n\t\trepeat with t in tabs of w\n\t\t\trepeat with s in sessions of t\n\t\t\t\tif tty of s is \"{{TTY}}\" then\n\t\t\t\t\ttell s to write text \"{{TEXT}}\"\n\t\t\t\t\treturn \"sent\"\n\t\t\t\tend if\n\t\t\tend repeat\n\t\tend repeat\n\tend repeat\n\treturn \"not_found\"\nend tell",
+      "keys": "tell application \"iTerm2\"\n\trepeat with w in windows\n\t\trepeat with t in tabs of w\n\t\t\trepeat with s in sessions of t\n\t\t\t\tif tty of s is \"{{TTY}}\" then\n\t\t\t\t\t{{CMDS}}\n\t\t\t\t\treturn \"sent\"\n\t\t\t\tend if\n\t\t\tend repeat\n\t\tend repeat\n\tend repeat\n\treturn \"not_found\"\nend tell",
+      "new_tab": "tell application \"iTerm2\"\n\ttell current window\n\t\tcreate tab with default profile\n\t\ttell current session of current tab\n\t\t\twrite text \"{{COMMAND}}\"\n\t\t\treturn tty\n\t\tend tell\n\tend tell\nend tell"
+    },
+    "terminal": {
+      "focus": "tell application \"Terminal\"\n\tactivate\n\trepeat with w in windows\n\t\trepeat with t in tabs of w\n\t\t\tif tty of t is \"{{TTY}}\" then\n\t\t\t\tset selected tab of w to t\n\t\t\t\tset index of w to 1\n\t\t\t\treturn \"found\"\n\t\t\tend if\n\t\tend repeat\n\tend repeat\n\treturn \"not_found\"\nend tell",
+      "activate": "tell application \"Terminal\" to activate",
+      "input": "tell application \"Terminal\"\n\tdo script \"{{TEXT}}\" in (first tab of first window whose tty is \"{{TTY}}\")\n\treturn \"sent\"\nend tell",
+      "keys": "tell application \"System Events\"\n\ttell process \"Terminal\"\n\t\t{{CMDS}}\n\tend tell\nend tell\nreturn \"sent\"",
+      "new_tab": "tell application \"Terminal\"\n\tdo script \"{{COMMAND}}\"\n\treturn tty of selected tab of front window\nend tell"
+    }
+  }
 }

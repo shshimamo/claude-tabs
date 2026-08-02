@@ -70,7 +70,7 @@ claude-tabs/
 └── config.json              # 全設定（定型文 / Worktree / sbx / プラグイン）
 ```
 
-## セットアップ
+## 起動手順
 
 ### 1. ビルド & インストール
 
@@ -171,9 +171,27 @@ make install
 
 ブラウザが自動で開く。サーバーが既に起動中なら既存サーバーに接続。
 
-## 定型文カスタマイズ
+## config.json について
 
-`~/.claude-tabs/config.json` の `presets` でブラウザ UI の定型文ボタンをカスタマイズできる:
+`~/.claude-tabs/config.json` で行う（参考: [`examples/config.json`](examples/config.json)）:
+
+| キー                     | カテゴリ              |  説明                                                      | デフォルト |
+|------------------------|-------------------|----------------------------------------------------------|-------|
+| `presets`              | 定型文カスタマイズ | ブラウザ UI の定型文ボタンをカスタマイズ | Yes / Commit / Commit & Push |
+| `worktree_base`        | Worktree + sbx 連携 | worktree 保存先 | `$(ghq root)/worktrees` |
+| `sbx_template`         | Worktree + sbx 連携 | sbx テンプレート | `my-sbx:latest` |
+| `sbx_default_mounts`   | Worktree + sbx 連携 | sbx デフォルトマウント（`~` 展開可） | `[]` |
+| `sbx_post_create_cmds` | Worktree + sbx 連携 | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） | `[]` |
+| `sbx_kits`             | Worktree + sbx 連携 | sbx 作成時に適用する kit（ディレクトリ / ZIP / OCI） | `[]` |
+| `plugins`              | Worktree + sbx 連携 | プラグイン設定の配列 | `[]` |
+| `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
+| `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
+| `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
+| `terminal_presets`     | ターミナル連携           | ターミナル操作の AppleScript 定義（カスタムターミナル対応用） | 内蔵(iterm2, terminal) |
+
+### 定型文カスタマイズ
+
+config.json 表の `定型文カスタマイズ` で設定。
 
 ```json
 {
@@ -187,24 +205,28 @@ make install
 
 未設定の場合は上記デフォルトが使用される。
 
-## Worktree + sbx 連携
+### Worktree + sbx 連携
+
+config.json 表の `Worktree + sbx 連携` で設定。
 
 Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
-### 設定
+### ターミナル設定
 
-Worktree + sbx の設定も `~/.claude-tabs/config.json` で行う（参考: [`examples/config.json`](examples/config.json)）:
+config.json 表の `ターミナル設定` で設定。
 
-| キー | 説明 |
-|------|------|
-| `worktree_base` | worktree 保存先（空なら `$(ghq root)/worktrees`） |
-| `sbx_template` | sbx テンプレート（デフォルト: `my-sbx:latest`） |
-| `sbx_default_mounts` | sbx デフォルトマウント（`~` 展開可） |
-| `sbx_post_create_cmds` | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） |
-| `sbx_kits` | sbx 作成時に適用する kit（ディレクトリ / ZIP / OCI） |
-| `plugins` | プラグイン設定の配列 |
-| `plugins[].source` | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） |
-| `plugins[].plugins` | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 |
+`iterm2` と `terminal`（Terminal.app）は内蔵プリセットがあり、設定不要で動作する。
+
+```json
+{ "terminal": "iterm2" }
+```
+
+`terminal_presets` に同名のエントリを書けば内蔵より優先される。
+他のターミナル（Ghostty 等）を使う場合は `terminal_presets` に AppleScript を定義して `terminal` で名前を指定する。
+
+テンプレート変数: `{{TTY}}`, `{{TEXT}}`, `{{CMDS}}`, `{{COMMAND}}`
+
+詳細は [`examples/config.json`](examples/config.json) を参照。
 
 ## CLI モード
 

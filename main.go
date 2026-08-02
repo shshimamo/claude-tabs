@@ -532,23 +532,10 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ts := getTerminalScripts(loadConfig())
+
 	focusTTY := func(tty string) bool {
-		script := fmt.Sprintf(`
-tell application "iTerm2"
-	activate
-	repeat with w in windows
-		repeat with t in tabs of w
-			repeat with s in sessions of t
-				if tty of s is "%s" then
-					select t
-					tell w to select
-					return "found"
-				end if
-			end repeat
-		end repeat
-	end repeat
-	return "not_found"
-end tell`, tty)
+		script := strings.ReplaceAll(ts.Focus, "{{TTY}}", tty)
 		if r, err := exec.Command("osascript", "-e", script).Output(); err == nil {
 			return strings.TrimSpace(string(r)) == "found"
 		}
@@ -576,7 +563,7 @@ end tell`, tty)
 
 	// Fallback: just activate iTerm2
 	if result != "found" {
-		exec.Command("osascript", "-e", `tell application "iTerm2" to activate`).Run()
+		exec.Command("osascript", "-e", ts.Activate).Run()
 		result = "activated"
 	}
 
@@ -627,20 +614,9 @@ func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send text + Enter via AppleScript
-	script := fmt.Sprintf(`
-tell application "iTerm2"
-	repeat with w in windows
-		repeat with t in tabs of w
-			repeat with s in sessions of t
-				if tty of s is "%s" then
-					tell s to write text "%s"
-					return "sent"
-				end if
-			end repeat
-		end repeat
-	end repeat
-	return "not_found"
-end tell`, tty, strings.ReplaceAll(text, `"`, `\"`))
+	ts := getTerminalScripts(loadConfig())
+	escapedText := strings.ReplaceAll(text, `"`, `\"`)
+	script := strings.ReplaceAll(strings.ReplaceAll(ts.Input, "{{TTY}}", tty), "{{TEXT}}", escapedText)
 
 	result, err := exec.Command("osascript", "-e", script).Output()
 	if err != nil {
@@ -710,20 +686,8 @@ func (s *server) handleSendKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	script := fmt.Sprintf(`
-tell application "iTerm2"
-	repeat with w in windows
-		repeat with t in tabs of w
-			repeat with s in sessions of t
-				if tty of s is "%s" then
-					%s
-					return "sent"
-				end if
-			end repeat
-		end repeat
-	end repeat
-	return "not_found"
-end tell`, tty, cmds)
+	ts := getTerminalScripts(loadConfig())
+	script := strings.ReplaceAll(strings.ReplaceAll(ts.Keys, "{{TTY}}", tty), "{{CMDS}}", cmds)
 
 	result, err := exec.Command("osascript", "-e", script).Output()
 	if err != nil {
@@ -1005,14 +969,24 @@ type PluginConfig struct {
 	Plugins []string `json:"plugins"`
 }
 
+type TerminalScripts struct {
+	Focus    string `json:"focus"`
+	Activate string `json:"activate"`
+	Input    string `json:"input"`
+	Keys     string `json:"keys"`
+	NewTab   string `json:"new_tab"`
+}
+
 type Config struct {
-	Presets          []Preset       `json:"presets"`
-	WorktreeBase     string         `json:"worktree_base"`
-	SbxTemplate      string         `json:"sbx_template"`
-	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
-	SbxPostCreateCmds [][]string `json:"sbx_post_create_cmds"`
-	SbxKits           []string   `json:"sbx_kits"`
-	Plugins          []PluginConfig `json:"plugins"`
+	Presets           []Preset                   `json:"presets"`
+	WorktreeBase      string                     `json:"worktree_base"`
+	SbxTemplate       string                     `json:"sbx_template"`
+	SbxDefaultMounts  []string                   `json:"sbx_default_mounts"`
+	SbxPostCreateCmds [][]string                 `json:"sbx_post_create_cmds"`
+	SbxKits           []string                   `json:"sbx_kits"`
+	Plugins           []PluginConfig             `json:"plugins"`
+	Terminal          string                     `json:"terminal"`
+	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
 }
 
 func configFilePath() string {
@@ -1049,6 +1023,108 @@ func loadConfig() Config {
 		cfg.Plugins[i].Source = expandHome(cfg.Plugins[i].Source)
 	}
 	return cfg
+}
+
+var builtinTerminalPresets = map[string]TerminalScripts{
+	"iterm2": {
+		Focus: `tell application "iTerm2"
+	activate
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "{{TTY}}" then
+					select t
+					tell w to select
+					return "found"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`,
+		Activate: `tell application "iTerm2" to activate`,
+		Input: `tell application "iTerm2"
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "{{TTY}}" then
+					tell s to write text "{{TEXT}}"
+					return "sent"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`,
+		Keys: `tell application "iTerm2"
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "{{TTY}}" then
+					{{CMDS}}
+					return "sent"
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return "not_found"
+end tell`,
+		NewTab: `tell application "iTerm2"
+	tell current window
+		create tab with default profile
+		tell current session of current tab
+			write text "{{COMMAND}}"
+			return tty
+		end tell
+	end tell
+end tell`,
+	},
+	"terminal": {
+		Focus: `tell application "Terminal"
+	activate
+	repeat with w in windows
+		repeat with t in tabs of w
+			if tty of t is "{{TTY}}" then
+				set selected tab of w to t
+				set index of w to 1
+				return "found"
+			end if
+		end repeat
+	end repeat
+	return "not_found"
+end tell`,
+		Activate: `tell application "Terminal" to activate`,
+		Input: `tell application "Terminal"
+	do script "{{TEXT}}" in (first tab of first window whose tty is "{{TTY}}")
+	return "sent"
+end tell`,
+		Keys: `tell application "System Events"
+	tell process "Terminal"
+		{{CMDS}}
+	end tell
+end tell
+return "sent"`,
+		NewTab: `tell application "Terminal"
+	do script "{{COMMAND}}"
+	return tty of selected tab of front window
+end tell`,
+	},
+}
+
+func getTerminalScripts(cfg Config) TerminalScripts {
+	terminal := cfg.Terminal
+	if terminal == "" {
+		terminal = "iterm2"
+	}
+	if cfg.TerminalPresets != nil {
+		if ts, ok := cfg.TerminalPresets[terminal]; ok {
+			return ts
+		}
+	}
+	if ts, ok := builtinTerminalPresets[terminal]; ok {
+		return ts
+	}
+	return builtinTerminalPresets["iterm2"]
 }
 
 func expandHome(path string) string {
@@ -1202,17 +1278,9 @@ func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 		}
 	}
 
-	// iTerm新タブでclaude起動、TTYを取得
-	script := fmt.Sprintf(`
-tell application "iTerm2"
-	tell current window
-		create tab with default profile
-		tell current session of current tab
-			write text "sbx run --name %s claude"
-			return tty
-		end tell
-	end tell
-end tell`, sbxName)
+	// 新タブでclaude起動、TTYを取得
+	ts := getTerminalScripts(cfg)
+	script := strings.ReplaceAll(ts.NewTab, "{{COMMAND}}", "sbx run --name "+sbxName+" claude")
 	ttyOut, _ := exec.Command("osascript", "-e", script).Output()
 	tty = strings.TrimSpace(string(ttyOut))
 	cwdPath = wtPath
