@@ -183,7 +183,7 @@ export default function App() {
       <header className={`header${hasAttention ? ' header-attention' : ''}`}>
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
-        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New Worktree</button>
+        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New sbx claude</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}

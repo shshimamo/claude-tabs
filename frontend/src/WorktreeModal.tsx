@@ -31,7 +31,7 @@ export default function WorktreeModal({ onClose }: Props) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>New Worktree + Claude</h3>
+          <h3>New sbx claude</h3>
           <button className="modal-close" onClick={onClose}>x</button>
         </div>
         <div className="modal-body">

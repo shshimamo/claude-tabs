@@ -244,14 +244,16 @@ type server struct {
 	clients    map[*websocket.Conn]bool
 	clientMu   sync.Mutex
 	upgrader   websocket.Upgrader
-	pendingTTY map[string]string // CWD -> TTY (auto-set on session creation)
+	pendingTTY  map[string]string // CWD -> TTY (auto-set on session creation)
+	pendingName map[string]string // CWD -> Name (auto-set on session creation)
 }
 
 func newServer() *server {
 	return &server{
-		sessions:   make(map[string]*Session),
-		clients:    make(map[*websocket.Conn]bool),
-		pendingTTY: make(map[string]string),
+		sessions:    make(map[string]*Session),
+		clients:     make(map[*websocket.Conn]bool),
+		pendingTTY:  make(map[string]string),
+		pendingName: make(map[string]string),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -323,11 +325,19 @@ func (s *server) handleFileChange(filePath string) {
 	}
 
 	s.mu.Lock()
-	if session.TTY == "" && session.CWD != "" {
-		if tty, ok := s.pendingTTY[session.CWD]; ok {
+	if session.CWD != "" {
+		changed := false
+		if tty, ok := s.pendingTTY[session.CWD]; ok && session.TTY == "" {
 			session.TTY = tty
 			delete(s.pendingTTY, session.CWD)
-			// persist TTY to session file
+			changed = true
+		}
+		if name, ok := s.pendingName[session.CWD]; ok {
+			session.ProjectName = name
+			delete(s.pendingName, session.CWD)
+			changed = true
+		}
+		if changed {
 			if updated, err := json.Marshal(&session); err == nil {
 				os.WriteFile(filePath, updated, 0644)
 			}
@@ -1309,12 +1319,16 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		return
 	}
-	if tty != "" && cwdPath != "" {
+	sbxName := "wt-" + repo + "-" + branch
+	if cwdPath != "" {
 		s.mu.Lock()
-		s.pendingTTY[cwdPath] = tty
+		if tty != "" {
+			s.pendingTTY[cwdPath] = tty
+		}
+		s.pendingName[cwdPath] = sbxName
 		s.mu.Unlock()
 	}
-	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: wt-" + repo + "-" + branch})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: " + sbxName})
 }
 
 func runServer() {
