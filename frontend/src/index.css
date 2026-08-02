@@ -223,9 +223,9 @@ body {
 }
 
 .status-working    { background: rgba(137,180,250,0.15); color: #89b4fa; }
-.status-waiting    { background: rgba(249,226,175,0.15); color: #f9e2af; }
+.status-waiting    { background: rgba(242,205,205,0.15); color: #f2cdcd; }
 .status-permission { background: rgba(250,179,135,0.15); color: #fab387; }
-.status-idle       { background: rgba(108,112,134,0.15); color: #6c7086; }
+.status-idle       { background: rgba(249,226,175,0.15); color: #f9e2af; }
 .status-terminated { background: rgba(69,71,90,0.3);     color: #45475a; }
 
 .status-loading {

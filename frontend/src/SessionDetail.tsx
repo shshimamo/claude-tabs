@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import type { Session } from './App'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
-  ai_working:          { label: 'AI作業中',  icon: '🔵', className: 'status-working' },
+  ai_working:          { label: 'AI作業中',  icon: '⚡', className: 'status-working' },
   waiting_input:       { label: '回答待ち',  icon: '❓', className: 'status-waiting' },
   permission_required: { label: '許可待ち',  icon: '🔐', className: 'status-permission' },
-  idle:                { label: '入力待ち',  icon: '💤', className: 'status-idle' },
+  idle:                { label: '入力待ち',  icon: '✏️', className: 'status-idle' },
   terminated:          { label: '終了',      icon: '⛔', className: 'status-terminated' },
 }
 
