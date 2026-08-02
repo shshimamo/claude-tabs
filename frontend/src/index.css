@@ -542,6 +542,34 @@ body {
   color: #a6adc8;
 }
 
+.wt-modal {
+  width: 700px;
+  max-width: 90vw;
+}
+
+.modal-steps {
+  background: #181825;
+  border-top: 1px solid #313244;
+  border-radius: 0 0 12px 12px;
+  padding: 12px 20px;
+}
+
+.modal-steps-label {
+  font-size: 11px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.modal-step {
+  font-size: 11px;
+  color: #a6adc8;
+  font-family: inherit;
+  line-height: 1.8;
+  word-break: break-all;
+}
+
 .config-modal {
   width: 600px;
   max-width: 90vw;

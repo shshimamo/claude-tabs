@@ -1,4 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+
+type Config = {
+  worktree_base?: string
+  sbx_template?: string
+  sbx_default_mounts?: string[]
+  sbx_kits?: string[]
+  sbx_post_create_cmds?: string[][]
+  plugins?: { source: string; plugins: string[] }[]
+}
 
 type Props = {
   onClose: () => void
@@ -9,6 +18,11 @@ export default function WorktreeModal({ onClose }: Props) {
   const [branch, setBranch] = useState('')
   const [creating, setCreating] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [cfg, setCfg] = useState<Config>({})
+
+  useEffect(() => {
+    fetch('/api/config').then(r => r.json()).then(setCfg).catch(() => {})
+  }, [])
 
   const handleCreate = async () => {
     if (!repo.trim() || !branch.trim()) return
@@ -27,9 +41,40 @@ export default function WorktreeModal({ onClose }: Props) {
     setCreating(false)
   }
 
+  const r = repo.trim() || '<repo>'
+  const b = branch.trim() || '<branch>'
+  const sbxName = `wt-${r}-${b}`
+  const wtBase = cfg.worktree_base || '~/worktrees'
+  const template = cfg.sbx_template || 'my-sbx:latest'
+  const wtPath = `${wtBase}/${r}/${b}`
+
+  const steps = useMemo(() => {
+    const s: string[] = []
+    s.push(`git worktree add ${wtPath}`)
+    const mounts = [wtPath, '~/.claude-tabs', ...(cfg.sbx_default_mounts || [])]
+    const kits = (cfg.sbx_kits || []).map(k => `--kit ${k}`).join(' ')
+    s.push(`sbx create --name ${sbxName} -t ${template}${kits ? ' ' + kits : ''} claude ${mounts.join(' ')}`)
+    s.push(`sbx exec ${sbxName} ln -sf <host>/.claude-tabs ~/.claude-tabs`)
+    for (const cmd of cfg.sbx_post_create_cmds || []) {
+      s.push(`sbx exec ${sbxName} ${cmd.join(' ')}`)
+    }
+    for (const pc of cfg.plugins || []) {
+      s.push(`sbx exec ${sbxName} claude plugins marketplace add ${pc.source}`)
+      for (const p of pc.plugins) {
+        if (p === 'auto') {
+          s.push(`sbx exec ${sbxName} claude plugins install <auto-detected>`)
+        } else {
+          s.push(`sbx exec ${sbxName} claude plugins install ${p}`)
+        }
+      }
+    }
+    s.push(`sbx run --name ${sbxName} claude`)
+    return s
+  }, [r, b, cfg, wtPath, sbxName, template])
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal wt-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>New sbx claude</h3>
           <button className="modal-close" onClick={onClose}>x</button>
@@ -62,6 +107,12 @@ export default function WorktreeModal({ onClose }: Props) {
           <button className="action-btn allow-btn" onClick={handleCreate} disabled={creating || !repo.trim() || !branch.trim()}>
             {creating ? 'Creating...' : 'Create'}
           </button>
+        </div>
+        <div className="modal-steps">
+          <div className="modal-steps-label">実行コマンド</div>
+          {steps.map((step, i) => (
+            <div key={i} className="modal-step">{i + 1}. {step}</div>
+          ))}
         </div>
       </div>
     </div>
