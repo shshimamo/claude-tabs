@@ -64,7 +64,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
               >
                 <div className="sidebar-item-main">
                   <span
-                    className="status-dot"
+                    className={`status-dot${session.status === 'ai_working' ? ' status-dot-working' : ''}`}
                     style={{ background: group.config.color }}
                   />
                   <span className="sidebar-project">{session.custom_name || session.project_name}</span>

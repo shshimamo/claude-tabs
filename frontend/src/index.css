@@ -126,6 +126,15 @@ body {
   flex-shrink: 0;
 }
 
+.status-dot-working {
+  animation: dot-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes dot-glow {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
 .sidebar-project {
   font-size: 13px;
   overflow: hidden;
@@ -227,6 +236,15 @@ body {
 .status-permission { background: rgba(250,179,135,0.15); color: #fab387; }
 .status-idle       { background: rgba(249,226,175,0.15); color: #f9e2af; }
 .status-terminated { background: rgba(69,71,90,0.3);     color: #45475a; }
+
+.status-attention {
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 
 .status-loading {
   display: flex;
