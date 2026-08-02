@@ -178,7 +178,7 @@ make install
 | キー                     | カテゴリ              |  説明                                                      | デフォルト |
 |------------------------|-------------------|----------------------------------------------------------|-------|
 | `presets`              | 定型文カスタマイズ | ブラウザ UI の定型文ボタンをカスタマイズ | Yes / Commit / Commit & Push |
-| `worktree_base`        | Worktree + sbx 連携 | worktree 保存先 | `$(ghq root)/worktrees` |
+| `worktree_base`        | Worktree + sbx 連携 | worktree 保存先 | `~/worktrees` |
 | `sbx_template`         | Worktree + sbx 連携 | sbx テンプレート | `my-sbx:latest` |
 | `sbx_default_mounts`   | Worktree + sbx 連携 | sbx デフォルトマウント（`~` 展開可） | `[]` |
 | `sbx_post_create_cmds` | Worktree + sbx 連携 | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） | `[]` |

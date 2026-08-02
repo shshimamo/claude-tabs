@@ -1199,11 +1199,8 @@ func worktreeCreate(repo, branch string) (tty, cwdPath string, err error) {
 	// worktree base
 	wtBase := cfg.WorktreeBase
 	if wtBase == "" {
-		ghqRoot, err := exec.Command("ghq", "root").Output()
-		if err != nil {
-			return "", "", fmt.Errorf("ghq root failed: %w", err)
-		}
-		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
+		home, _ := os.UserHomeDir()
+		wtBase = filepath.Join(home, "worktrees")
 	}
 	wtPath := filepath.Join(wtBase, repo, branch)
 	sbxName := "wt-" + repo + "-" + branch
