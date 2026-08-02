@@ -135,7 +135,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             <span className="edit-icon">✎</span>
           </h2>
         )}
-        <span className={`detail-status ${config.className}`}>
+        <span className={`detail-status ${config.className}${session.status === 'ai_working' ? ' status-loading' : ''}`}>
+          {session.status === 'ai_working' && <span className="loading-dots" />}
           {config.icon} {config.label}
         </span>
       </div>

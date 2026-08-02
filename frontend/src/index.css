@@ -228,6 +228,50 @@ body {
 .status-idle       { background: rgba(108,112,134,0.15); color: #6c7086; }
 .status-terminated { background: rgba(69,71,90,0.3);     color: #45475a; }
 
+.status-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.loading-dots::before,
+.loading-dots::after,
+.loading-dots {
+  content: '';
+}
+
+.loading-dots,
+.loading-dots::before,
+.loading-dots::after {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #89b4fa;
+  animation: dot-blink 1.2s infinite;
+}
+
+.loading-dots::before {
+  animation-delay: 0s;
+}
+
+.loading-dots {
+  animation-delay: 0.2s;
+}
+
+.loading-dots::after {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot-blink {
+  0%, 60%, 100% { opacity: 0.2; }
+  30% { opacity: 1; }
+}
+
 .detail-question {
   background: #181825;
   border: 1px solid #313244;
