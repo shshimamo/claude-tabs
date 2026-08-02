@@ -4,6 +4,7 @@ import SessionDetail from './SessionDetail'
 import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
+import SbxRunModal from './SbxRunModal'
 
 export type Session = {
   session_id: string
@@ -176,6 +177,7 @@ export default function App() {
   }, [])
 
   const [wtModalOpen, setWtModalOpen] = useState(false)
+  const [sbxRunOpen, setSbxRunOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
 
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
@@ -187,10 +189,12 @@ export default function App() {
       <header className={`header${hasAttention ? ' header-attention' : ''}`}>
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
-        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New sbx claude</button>
+        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ Create sbx</button>
+        <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}
+      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} />}
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}

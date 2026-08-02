@@ -997,6 +997,7 @@ type Config struct {
 	Plugins           []PluginConfig             `json:"plugins"`
 	Terminal          string                     `json:"terminal"`
 	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
+	RepositoryBase    string                     `json:"repository_base"`
 }
 
 func configFilePath() string {
@@ -1032,6 +1033,7 @@ func loadConfig() Config {
 	for i := range cfg.Plugins {
 		cfg.Plugins[i].Source = expandHome(cfg.Plugins[i].Source)
 	}
+	cfg.RepositoryBase = expandHome(cfg.RepositoryBase)
 	return cfg
 }
 
@@ -1331,6 +1333,86 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: " + sbxName})
 }
 
+func handleSbxList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	out, err := exec.Command("sbx", "ls", "-q").Output()
+	if err != nil {
+		json.NewEncoder(w).Encode([]string{})
+		return
+	}
+	var names []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line != "" {
+			names = append(names, line)
+		}
+	}
+	if names == nil {
+		names = []string{}
+	}
+	json.NewEncoder(w).Encode(names)
+}
+
+func handleRepoList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	cfg := loadConfig()
+	if cfg.RepositoryBase == "" {
+		json.NewEncoder(w).Encode([]string{})
+		return
+	}
+	var repos []string
+	filepath.WalkDir(cfg.RepositoryBase, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return filepath.SkipDir
+		}
+		if d.Name() == ".git" && d.IsDir() {
+			rel, _ := filepath.Rel(cfg.RepositoryBase, filepath.Dir(path))
+			repos = append(repos, rel)
+			return filepath.SkipDir
+		}
+		// max depth 4
+		rel, _ := filepath.Rel(cfg.RepositoryBase, path)
+		if strings.Count(rel, string(filepath.Separator)) >= 4 {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if repos == nil {
+		repos = []string{}
+	}
+	json.NewEncoder(w).Encode(repos)
+}
+
+func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sbxName := r.URL.Query().Get("sbx")
+	repoPath := r.URL.Query().Get("repo")
+	if sbxName == "" || repoPath == "" {
+		http.Error(w, "sbx and repo required", http.StatusBadRequest)
+		return
+	}
+
+	cfg := loadConfig()
+	fullPath := filepath.Join(cfg.RepositoryBase, repoPath)
+
+	ts := getTerminalScripts(cfg)
+	command := fmt.Sprintf("sbx exec -it %s sh -c 'cd %s && claude'", sbxName, fullPath)
+	script := strings.ReplaceAll(ts.NewTab, "{{COMMAND}}", command)
+	ttyOut, _ := exec.Command("osascript", "-e", script).Output()
+	tty := strings.TrimSpace(string(ttyOut))
+
+	w.Header().Set("Content-Type", "application/json")
+	if tty != "" && fullPath != "" {
+		s.mu.Lock()
+		s.pendingTTY[fullPath] = tty
+		s.pendingName[fullPath] = sbxName + ":" + filepath.Base(repoPath)
+		s.mu.Unlock()
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Claude started in " + sbxName + " at " + repoPath})
+}
+
 func runServer() {
 	srv := newServer()
 	srv.loadSessions()
@@ -1362,6 +1444,9 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 	mux.HandleFunc("/api/worktree/create", srv.handleWorktreeCreate)
+	mux.HandleFunc("/api/sbx/list", handleSbxList)
+	mux.HandleFunc("/api/sbx/repos", handleRepoList)
+	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
 	mux.HandleFunc("/api/presets", handlePresets)
 	mux.HandleFunc("/api/config", handleConfig)
 

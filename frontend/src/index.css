@@ -583,6 +583,22 @@ body {
 .modal-result-ok { background: rgba(166,227,161,0.15); color: #a6e3a1; }
 .modal-result-err { background: rgba(243,139,168,0.15); color: #f38ba8; }
 
+.repo-list {
+  max-height: 150px;
+  overflow-y: auto;
+  background: #181825;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+}
+
+.repo-item {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #cdd6f4;
+  cursor: pointer;
+}
+.repo-item:hover { background: #313244; }
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
