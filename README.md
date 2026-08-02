@@ -200,7 +200,7 @@ Worktree + sbx の設定も `~/.claude-tabs/config.json` で行う（参考: [`e
 | `worktree_base` | worktree 保存先（空なら `$(ghq root)/worktrees`） |
 | `sbx_template` | sbx テンプレート（デフォルト: `my-sbx:latest`） |
 | `sbx_default_mounts` | sbx デフォルトマウント（`~` 展開可） |
-| `sbx_post_create_cmd` | sbx 作成後に実行するコマンド（配列形式、参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)） |
+| `sbx_post_create_cmds` | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） |
 | `plugins` | プラグイン設定の配列 |
 | `plugins[].source` | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） |
 | `plugins[].plugins` | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 |

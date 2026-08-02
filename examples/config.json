@@ -11,7 +11,10 @@
     "~/.claude-tabs",
     "~/.claude-plugins"
   ],
-  "sbx_post_create_cmd": ["zsh", "-ic", "setup-dotfiles"],
+  "sbx_post_create_cmds": [
+    ["setup-dotfiles"],
+    ["claude", "mcp", "add", "my-server", "--", "npx", "my-mcp-server"]
+  ],
   "plugins": [
     {
       "source": "~/claude-plugins",

@@ -906,7 +906,7 @@ type Config struct {
 	WorktreeBase     string         `json:"worktree_base"`
 	SbxTemplate      string         `json:"sbx_template"`
 	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
-	SbxPostCreateCmd []string `json:"sbx_post_create_cmd"`
+	SbxPostCreateCmds [][]string `json:"sbx_post_create_cmds"`
 	Plugins          []PluginConfig `json:"plugins"`
 }
 
@@ -932,8 +932,10 @@ func loadConfig() Config {
 		cfg.SbxTemplate = "my-sbx:latest"
 	}
 	cfg.WorktreeBase = expandHome(cfg.WorktreeBase)
-	for i := range cfg.SbxPostCreateCmd {
-		cfg.SbxPostCreateCmd[i] = expandHome(cfg.SbxPostCreateCmd[i])
+	for i := range cfg.SbxPostCreateCmds {
+		for j := range cfg.SbxPostCreateCmds[i] {
+			cfg.SbxPostCreateCmds[i][j] = expandHome(cfg.SbxPostCreateCmds[i][j])
+		}
 	}
 	for i := range cfg.SbxDefaultMounts {
 		cfg.SbxDefaultMounts[i] = expandHome(cfg.SbxDefaultMounts[i])
@@ -1021,10 +1023,12 @@ func worktreeCreate(repo, branch string) error {
 		return fmt.Errorf("sbx create failed: %s", out)
 	}
 
-	// setup command (best effort)
-	if len(cfg.SbxPostCreateCmd) > 0 {
-		args := append([]string{"exec", sbxName}, cfg.SbxPostCreateCmd...)
-		exec.Command("sbx", args...).Run()
+	// setup commands (best effort)
+	for _, cmd := range cfg.SbxPostCreateCmds {
+		if len(cmd) > 0 {
+			args := append([]string{"exec", sbxName}, cmd...)
+			exec.Command("sbx", args...).Run()
+		}
 	}
 
 	// plugins install
