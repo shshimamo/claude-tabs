@@ -196,19 +196,19 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         </div>
       )}
 
-      {session.last_prompt && (
-        <div className="detail-question">
-          <div className="detail-question-label" style={{ color: '#89b4fa' }}>User Input</div>
-          <div className="detail-question-text">{session.last_prompt}</div>
-        </div>
-      )}
-
       {session.last_output && (
         <div className="detail-question">
           <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1' }}>
             {session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}
           </div>
-          <div className="detail-question-text">{unescapeUnicode(session.last_output)}</div>
+          <div className="detail-question-text detail-output-text">{unescapeUnicode(session.last_output)}</div>
+        </div>
+      )}
+
+      {session.last_prompt && (
+        <div className="detail-question">
+          <div className="detail-question-label" style={{ color: '#89b4fa' }}>User Input</div>
+          <div className="detail-question-text detail-output-text">{session.last_prompt}</div>
         </div>
       )}
 
