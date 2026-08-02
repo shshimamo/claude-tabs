@@ -895,6 +895,40 @@ func loadPresets() []Preset {
 	return presets
 }
 
+type PluginConfig struct {
+	Source  string   `json:"source"`
+	Plugins []string `json:"plugins"`
+}
+
+func pluginsFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude-tabs", "plugins.json")
+}
+
+func expandHome(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
+}
+
+func loadPluginConfigs() []PluginConfig {
+	data, err := os.ReadFile(pluginsFilePath())
+	if err != nil {
+		return nil
+	}
+	var configs []PluginConfig
+	if err := json.Unmarshal(data, &configs); err != nil {
+		return nil
+	}
+	for i := range configs {
+		configs[i].Source = expandHome(configs[i].Source)
+	}
+	return configs
+}
+
 func handlePresets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(loadPresets())
@@ -1001,25 +1035,30 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 	if setupCmd := os.Getenv("CLAUDE_TABS_SBX_SETUP_CMD"); setupCmd != "" {
 		exec.Command("sbx", "exec", sbxName, "sh", "-c", setupCmd).Run()
 	}
-	if pluginsDirs := os.Getenv("CLAUDE_TABS_CLAUDE_PLUGINS_DIRS"); pluginsDirs != "" {
-		for _, pluginsDir := range strings.Fields(pluginsDirs) {
-			// marketplace name from .claude-plugin/marketplace.json
+	// plugins install from plugins.json
+	for _, pc := range loadPluginConfigs() {
+		exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pc.Source).Run()
+		if len(pc.Plugins) == 1 && pc.Plugins[0] == "auto" {
+			// auto-detect from local plugins/ directory
 			marketplaceName := ""
-			if mdata, err := os.ReadFile(filepath.Join(pluginsDir, ".claude-plugin", "marketplace.json")); err == nil {
+			if mdata, err := os.ReadFile(filepath.Join(pc.Source, ".claude-plugin", "marketplace.json")); err == nil {
 				var mj struct{ Name string `json:"name"` }
 				if json.Unmarshal(mdata, &mj) == nil && mj.Name != "" {
 					marketplaceName = mj.Name
 				}
 			}
 			if marketplaceName != "" {
-				exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pluginsDir).Run()
-				if entries, err := os.ReadDir(filepath.Join(pluginsDir, "plugins")); err == nil {
+				if entries, err := os.ReadDir(filepath.Join(pc.Source, "plugins")); err == nil {
 					for _, e := range entries {
 						if e.IsDir() {
 							exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", e.Name()+"@"+marketplaceName).Run()
 						}
 					}
 				}
+			}
+		} else {
+			for _, plugin := range pc.Plugins {
+				exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", plugin).Run()
 			}
 		}
 	}

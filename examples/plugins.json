@@ -1,0 +1,14 @@
+[
+  {
+    "source": "~/claude-plugins",
+    "plugins": ["auto"]
+  },
+  {
+    "source": "user/repo",
+    "plugins": ["plugin-a", "plugin-b"]
+  },
+  {
+    "source": "https://github.com/someone/plugins#v1.0.0",
+    "plugins": ["plugin-x"]
+  }
+]

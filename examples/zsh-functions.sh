@@ -16,7 +16,9 @@
 #   - CLAUDE_TABS_SBX_TEMPLATE     — sbx テンプレート（デフォルト: my-sbx:latest）
 #   - CLAUDE_TABS_SBX_DEFAULT_MOUNTS — sbx デフォルトマウント（スペース区切り）
 #   - CLAUDE_TABS_SBX_SETUP_CMD    — sbx 作成後のセットアップコマンド
-#   - CLAUDE_TABS_CLAUDE_PLUGINS_DIRS — Claude plugins ディレクトリ（スペース区切り）
+#
+# 設定ファイル:
+#   - ~/.claude-tabs/plugins.json  — プラグイン設定（詳細は README 参照）
 
 # wtcd: worktree 一覧から fzf で選択して cd
 function wtcd() {
@@ -117,14 +119,26 @@ function wt-sbx() {
     sbx exec "$sbx_name" sh -c "$CLAUDE_TABS_SBX_SETUP_CMD" 2>/dev/null
   fi
 
-  # plugins インストール
-  if [[ -n "$CLAUDE_TABS_CLAUDE_PLUGINS_DIRS" ]]; then
-    for plugins_dir in ${(s: :)CLAUDE_TABS_CLAUDE_PLUGINS_DIRS}; do
-      local marketplace_name=$(python3 -c "import json; print(json.load(open('${plugins_dir}/.claude-plugin/marketplace.json'))['name'])" 2>/dev/null)
-      if [[ -n "$marketplace_name" ]]; then
-        sbx exec "$sbx_name" claude plugins marketplace add "$plugins_dir" 2>/dev/null
-        for plugin in "${plugins_dir}"/plugins/*/; do
-          sbx exec "$sbx_name" claude plugins install "$(basename "$plugin")@${marketplace_name}" 2>/dev/null
+  # plugins install from ~/.claude-tabs/plugins.json
+  local plugins_json="$HOME/.claude-tabs/plugins.json"
+  if [[ -f "$plugins_json" ]]; then
+    local configs=$(cat "$plugins_json")
+    local count=$(echo "$configs" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null)
+    for ((i=0; i<${count:-0}; i++)); do
+      local source=$(echo "$configs" | python3 -c "import sys,json,os; s=json.load(sys.stdin)[$i]['source']; print(os.path.expanduser(s))" 2>/dev/null)
+      local plugins_str=$(echo "$configs" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin)[$i]['plugins']))" 2>/dev/null)
+      [[ -z "$source" ]] && continue
+      sbx exec "$sbx_name" claude plugins marketplace add "$source" 2>/dev/null
+      if [[ "$plugins_str" == "auto" ]]; then
+        local marketplace_name=$(python3 -c "import json; print(json.load(open('${source}/.claude-plugin/marketplace.json'))['name'])" 2>/dev/null)
+        if [[ -n "$marketplace_name" ]]; then
+          for plugin in "${source}"/plugins/*/; do
+            sbx exec "$sbx_name" claude plugins install "$(basename "$plugin")@${marketplace_name}" 2>/dev/null
+          done
+        fi
+      else
+        for plugin in ${(s: :)plugins_str}; do
+          sbx exec "$sbx_name" claude plugins install "$plugin" 2>/dev/null
         done
       fi
     done

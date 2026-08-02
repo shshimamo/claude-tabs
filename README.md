@@ -67,7 +67,8 @@ claude-tabs/
 ├── sessions/                # セッション状態 JSON（hook が書き込み）
 │   ├── {session_id}.json
 │   └── ...
-└── presets.json             # 定型文設定（任意）
+├── presets.json             # 定型文設定（任意）
+└── plugins.json             # プラグイン設定（任意）
 ```
 
 ## セットアップ
@@ -197,7 +198,6 @@ Web UI・CLI 共通で以下の環境変数を使用する:
 - `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
 - `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）。デフォルトでマウントしておきたいリポジトリなど
 - `CLAUDE_TABS_SBX_SETUP_CMD` — sbx 作成後に実行するセットアップコマンド（未設定ならスキップ、参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）
-- `CLAUDE_TABS_CLAUDE_PLUGINS_DIRS` — Claude plugins ディレクトリ（スペース区切りで複数指定可、未設定ならスキップ）
 
 ```sh
 # 設定例（~/.zshrc や ~/.zsh_local/*.zsh 等に追加）
@@ -205,8 +205,27 @@ export CLAUDE_TABS_WORKTREE_BASE="$HOME/worktrees"
 export CLAUDE_TABS_SBX_TEMPLATE="my-sbx:latest"
 export CLAUDE_TABS_SBX_DEFAULT_MOUNTS="$HOME/dotfiles:ro $HOME/.claude-tabs $HOME/.claude-plugins"
 export CLAUDE_TABS_SBX_SETUP_CMD="$HOME/dotfiles/setup-dotfiles.sh" # CLAUDE_TABS_SBX_DEFAULT_MOUNTS でマウント済みのファイルなど
-export CLAUDE_TABS_CLAUDE_PLUGINS_DIRS="$HOME/claude-plugins $HOME/claude-plugins-extra"
 ```
+
+### プラグイン設定
+
+`~/.claude-tabs/plugins.json` で sbx 作成時にインストールするプラグインを設定する:
+
+```json
+[
+  {
+    "source": "~/claude-plugins",
+    "plugins": ["auto"]
+  },
+  {
+    "source": "user/repo",
+    "plugins": ["plugin-a", "plugin-b"]
+  }
+]
+```
+
+- `source` — ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`）
+- `plugins` — インストールするプラグイン名の配列。`["auto"]` の場合はローカルの `plugins/` ディレクトリから自動検出
 
 ## CLI モード
 
