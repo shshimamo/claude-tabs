@@ -18,6 +18,13 @@ function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString()
 }
 
+function unescapeUnicode(s: string): string {
+  return s
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+}
+
 type Props = {
   session: Session
   onRename: (id: string, name: string) => void
@@ -201,7 +208,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1' }}>
             {session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}
           </div>
-          <div className="detail-question-text">{session.last_output}</div>
+          <div className="detail-question-text">{unescapeUnicode(session.last_output)}</div>
         </div>
       )}
 
