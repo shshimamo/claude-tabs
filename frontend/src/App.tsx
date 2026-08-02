@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar'
 import SessionDetail from './SessionDetail'
 import WorktreeModal from './WorktreeModal'
+import DeleteConfirmModal from './DeleteConfirmModal'
 
 export type Session = {
   session_id: string
@@ -120,8 +121,36 @@ export default function App() {
     return () => { alive = false; wsRef.current?.close() }
   }, [])
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string
+    hasWorktree: boolean
+    hasSbx: boolean
+    worktreePath: string
+    sbxName: string
+  } | null>(null)
+
   const handleDelete = useCallback(async (id: string) => {
-    const res = await fetch(`/api/sessions/delete?id=${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/sessions/delete-check?id=${id}`)
+    if (!res.ok) return
+    const info = await res.json()
+    if (info.has_worktree || info.has_sbx) {
+      setDeleteConfirm({
+        id,
+        hasWorktree: info.has_worktree,
+        hasSbx: info.has_sbx,
+        worktreePath: info.worktree_path,
+        sbxName: info.sbx_name,
+      })
+      return
+    }
+    await executeDelete(id, false, false)
+  }, [])
+
+  const executeDelete = useCallback(async (id: string, removeWorktree: boolean, removeSbx: boolean) => {
+    const params = new URLSearchParams({ id })
+    if (removeWorktree) params.set('remove_worktree', '1')
+    if (removeSbx) params.set('remove_sbx', '1')
+    const res = await fetch(`/api/sessions/delete?${params}`, { method: 'DELETE' })
     if (!res.ok) return
     setSessions(prev => {
       const next = prev.filter(s => s.session_id !== id)
@@ -130,6 +159,7 @@ export default function App() {
       }
       return next
     })
+    setDeleteConfirm(null)
   }, [selectedId])
 
   const handleRename = useCallback(async (id: string, name: string) => {
@@ -154,6 +184,11 @@ export default function App() {
         <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ New Worktree</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}
+      {deleteConfirm && <DeleteConfirmModal
+        info={deleteConfirm}
+        onConfirm={(removeWt, removeSbx) => executeDelete(deleteConfirm.id, removeWt, removeSbx)}
+        onCancel={() => setDeleteConfirm(null)}
+      />}
       <div className="body">
         <Sidebar
           sessions={sessions}

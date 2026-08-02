@@ -523,3 +523,21 @@ body {
   padding: 16px 20px;
   border-top: 1px solid #313244;
 }
+
+.delete-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  color: #cdd6f4;
+  cursor: pointer;
+}
+
+.delete-check-label input[type="checkbox"] {
+  accent-color: #f38ba8;
+}
+
+.delete-check-label code {
+  font-size: 12px;
+  color: #a6adc8;
+}

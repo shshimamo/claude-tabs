@@ -864,6 +864,72 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(messages)
 }
 
+// sessionWorktreeInfo checks if a session's CWD is under worktree_base and returns worktree/sbx info
+func sessionWorktreeInfo(cwd string) (wtPath, sbxName string) {
+	if cwd == "" {
+		return
+	}
+	cfg := loadConfig()
+	wtBase := cfg.WorktreeBase
+	if wtBase == "" {
+		ghqRoot, err := exec.Command("ghq", "root").Output()
+		if err != nil {
+			return
+		}
+		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
+	}
+	rel, err := filepath.Rel(wtBase, cwd)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return
+	}
+	// rel should be "repo/branch" or "repo/branch/..."
+	parts := strings.SplitN(rel, string(filepath.Separator), 3)
+	if len(parts) < 2 {
+		return
+	}
+	repo, branch := parts[0], parts[1]
+	wtPath = filepath.Join(wtBase, repo, branch)
+	sbxName = "wt-" + repo + "-" + branch
+	return
+}
+
+func (s *server) handleDeleteSessionCheck(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+	s.mu.RLock()
+	session, ok := s.sessions[id]
+	s.mu.RUnlock()
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]any{"has_worktree": false, "has_sbx": false})
+		return
+	}
+
+	wtPath, sbxName := sessionWorktreeInfo(session.CWD)
+	hasWorktree := wtPath != "" && dirExists(wtPath)
+	hasSbx := false
+	if sbxName != "" {
+		if err := exec.Command("sbx", "inspect", sbxName).Run(); err == nil {
+			hasSbx = true
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"has_worktree": hasWorktree,
+		"has_sbx":      hasSbx,
+		"worktree_path": wtPath,
+		"sbx_name":      sbxName,
+	})
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 func (s *server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -874,12 +940,37 @@ func (s *server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
+	removeWorktree := r.URL.Query().Get("remove_worktree") == "1"
+	removeSbx := r.URL.Query().Get("remove_sbx") == "1"
 
 	s.mu.Lock()
+	session, ok := s.sessions[id]
+	var cwd string
+	if ok {
+		cwd = session.CWD
+	}
 	delete(s.sessions, id)
 	s.mu.Unlock()
 
 	os.Remove(filepath.Join(sessionsDir(), id+".json"))
+
+	if cwd != "" {
+		wtPath, sbxName := sessionWorktreeInfo(cwd)
+		if removeSbx && sbxName != "" {
+			exec.Command("sbx", "rm", "-f", sbxName).Run()
+		}
+		if removeWorktree && wtPath != "" {
+			// find git repo that owns this worktree
+			gitDir, err := exec.Command("git", "-C", wtPath, "rev-parse", "--git-common-dir").Output()
+			if err == nil {
+				repoDir := filepath.Dir(strings.TrimSpace(string(gitDir)))
+				branch := filepath.Base(wtPath)
+				exec.Command("git", "-C", repoDir, "worktree", "remove", wtPath, "--force").Run()
+				exec.Command("git", "-C", repoDir, "branch", "-D", branch).Run()
+			}
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 	s.broadcastSessions()
 }
@@ -991,7 +1082,7 @@ func worktreeCreate(repo, branch string) error {
 		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
 	}
 	wtPath := filepath.Join(wtBase, repo, branch)
-	sbxName := repo + "-" + branch
+	sbxName := "wt-" + repo + "-" + branch
 
 	// worktree作成
 	if _, err := os.Stat(wtPath); err == nil {
@@ -1123,6 +1214,7 @@ func runServer() {
 	})
 
 	mux.HandleFunc("/api/sessions/delete", srv.handleDeleteSession)
+	mux.HandleFunc("/api/sessions/delete-check", srv.handleDeleteSessionCheck)
 	mux.HandleFunc("/api/sessions/name", srv.handleRenameSession)
 	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
