@@ -30,9 +30,10 @@ type Props = {
   selectedId: string | null
   onSelect: (id: string) => void
   onDelete: (id: string) => void
+  onFocus: (id: string) => void
 }
 
-export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Props) {
+export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus }: Props) {
   const grouped = STATUS_ORDER.map(status => ({
     status,
     config: STATUS_CONFIG[status] ?? { label: status, icon: '?', color: '#cdd6f4' },
@@ -59,6 +60,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete }: Pr
                 key={session.session_id}
                 className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}`}
                 onClick={() => onSelect(session.session_id)}
+                onDoubleClick={() => onFocus(session.session_id)}
               >
                 <div className="sidebar-item-main">
                   <span

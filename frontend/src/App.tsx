@@ -171,6 +171,10 @@ export default function App() {
     await fetch(`/api/sessions/tty?id=${encodeURIComponent(id)}&tty=${encodeURIComponent(tty)}`, { method: 'POST' })
   }, [])
 
+  const handleFocus = useCallback(async (id: string) => {
+    await fetch(`/api/sessions/focus?id=${encodeURIComponent(id)}`, { method: 'POST' })
+  }, [])
+
   const [wtModalOpen, setWtModalOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
 
@@ -199,6 +203,7 @@ export default function App() {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onDelete={handleDelete}
+          onFocus={handleFocus}
         />
         <main className="main">
           {selected ? (
