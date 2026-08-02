@@ -67,8 +67,8 @@ claude-tabs/
 ├── sessions/                # セッション状態 JSON（hook が書き込み）
 │   ├── {session_id}.json
 │   └── ...
-├── presets.json             # 定型文設定（任意）
-└── plugins.json             # プラグイン設定（任意）
+├── config.json              # Worktree + sbx 設定（任意）
+└── presets.json             # 定型文設定（任意）
 ```
 
 ## セットアップ
@@ -190,64 +190,60 @@ make install
 
 Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
-### 環境変数
+### 設定
 
-Web UI・CLI 共通で以下の環境変数を使用する:
-
-- `CLAUDE_TABS_WORKTREE_BASE` — worktree 保存先（デフォルト: `$(ghq root)/worktrees`）
-- `CLAUDE_TABS_SBX_TEMPLATE` — sbx テンプレート（デフォルト: `my-sbx:latest`）
-- `CLAUDE_TABS_SBX_DEFAULT_MOUNTS` — sbx デフォルトマウント（スペース区切り）。デフォルトでマウントしておきたいリポジトリなど
-- `CLAUDE_TABS_SBX_SETUP_CMD` — sbx 作成後に実行するセットアップコマンド（未設定ならスキップ、参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）
-
-```sh
-# 設定例（~/.zshrc や ~/.zsh_local/*.zsh 等に追加）
-export CLAUDE_TABS_WORKTREE_BASE="$HOME/worktrees"
-export CLAUDE_TABS_SBX_TEMPLATE="my-sbx:latest"
-export CLAUDE_TABS_SBX_DEFAULT_MOUNTS="$HOME/dotfiles:ro $HOME/.claude-tabs $HOME/.claude-plugins"
-export CLAUDE_TABS_SBX_SETUP_CMD="$HOME/dotfiles/setup-dotfiles.sh" # CLAUDE_TABS_SBX_DEFAULT_MOUNTS でマウント済みのファイルなど
-```
-
-### プラグイン設定
-
-`~/.claude-tabs/plugins.json` で sbx 作成時にインストールするプラグインを設定する:
+`~/.claude-tabs/config.json` で Web UI・CLI 共通の設定を行う（参考: [`examples/config.json`](examples/config.json)）:
 
 ```json
-[
-  {
-    "source": "~/claude-plugins",
-    "plugins": ["auto"]
-  },
-  {
-    "source": "user/repo",
-    "plugins": ["plugin-a", "plugin-b"]
-  }
-]
+{
+  "worktree_base": "",
+  "sbx_template": "my-sbx:latest",
+  "sbx_default_mounts": [
+    "~/dotfiles:ro",
+    "~/.claude-tabs",
+    "~/.claude-plugins"
+  ],
+  "sbx_setup_cmd": "~/dotfiles/setup.sh",
+  "plugins": [
+    {
+      "source": "~/claude-plugins",
+      "plugins": ["auto"]
+    },
+    {
+      "source": "user/repo",
+      "plugins": ["plugin-a", "plugin-b"]
+    }
+  ]
+}
 ```
 
-- `source` — ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`）
-- `plugins` — インストールするプラグイン名の配列。`["auto"]` の場合はローカルの `plugins/` ディレクトリから自動検出
+| キー | 説明 |
+|------|------|
+| `worktree_base` | worktree 保存先（空なら `$(ghq root)/worktrees`） |
+| `sbx_template` | sbx テンプレート（デフォルト: `my-sbx:latest`） |
+| `sbx_default_mounts` | sbx デフォルトマウント（`~` 展開可） |
+| `sbx_setup_cmd` | sbx 作成後に実行するセットアップコマンド（参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)） |
+| `plugins` | プラグイン設定の配列 |
+| `plugins[].source` | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） |
+| `plugins[].plugins` | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 |
 
 ## CLI モード
 
 ```sh
-claude-tabs                    # ブラウザを開く（サーバーが未起動なら自動起動）
-claude-tabs --server           # サーバーモードで直接起動
-claude-tabs hook <EventType>   # hook ハンドラー（Claude Code から呼ばれる）
+claude-tabs                                  # ブラウザを開く（サーバーが未起動なら自動起動）
+claude-tabs --server                         # サーバーモードで直接起動
+claude-tabs hook <EventType>                 # hook ハンドラー（Claude Code から呼ばれる）
+claude-tabs worktree create <repo> <branch>  # worktree + sbx + Claude 起動
 ```
 
-### CLI
+### zsh 関数
 
-worktree生成をCLIで行う場合の参考例。(claude-tabs とは関係はない独立した関数): [`examples/zsh-functions.sh`](examples/zsh-functions.sh)
+ターミナルから使う場合の参考例: [`examples/zsh-functions.sh`](examples/zsh-functions.sh)
 
 ```sh
-# worktree作成 + sbx作成 + iTerm新タブでclaude起動
-wt-sbx <repo> <branch>
-
-# worktree一覧からfzfで選択してcd
-wtcd
-
-# worktree + sbx を削除
-wtrm
+wt-sbx <repo> <branch>  # claude-tabs worktree create のラッパー
+wtcd                     # worktree一覧からfzfで選択してcd
+wtrm                     # worktree + sbx を削除
 ```
 
 ## 技術スタック

@@ -1,0 +1,24 @@
+{
+  "worktree_base": "",
+  "sbx_template": "my-sbx:latest",
+  "sbx_default_mounts": [
+    "~/dotfiles:ro",
+    "~/.claude-tabs",
+    "~/.claude-plugins"
+  ],
+  "sbx_setup_cmd": "~/dotfiles/setup.sh",
+  "plugins": [
+    {
+      "source": "~/claude-plugins",
+      "plugins": ["auto"]
+    },
+    {
+      "source": "user/repo",
+      "plugins": ["plugin-a", "plugin-b"]
+    },
+    {
+      "source": "https://github.com/someone/plugins#v1.0.0",
+      "plugins": ["plugin-x"]
+    }
+  ]
+}

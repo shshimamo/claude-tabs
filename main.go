@@ -82,6 +82,23 @@ func main() {
 		return
 	}
 
+	if len(args) >= 3 && args[0] == "worktree" && args[1] == "create" {
+		repo := args[2]
+		branch := ""
+		if len(args) >= 4 {
+			branch = args[3]
+		}
+		if branch == "" {
+			fmt.Fprintln(os.Stderr, "Usage: claude-tabs worktree create <repo> <branch>")
+			os.Exit(1)
+		}
+		if err := worktreeCreate(repo, branch); err != nil {
+			fmt.Fprintf(os.Stderr, "claude-tabs: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	// Client mode
 	if isServerRunning() {
 		browser.OpenURL("http://" + addr)
@@ -900,9 +917,40 @@ type PluginConfig struct {
 	Plugins []string `json:"plugins"`
 }
 
-func pluginsFilePath() string {
+type Config struct {
+	WorktreeBase     string         `json:"worktree_base"`
+	SbxTemplate      string         `json:"sbx_template"`
+	SbxDefaultMounts []string       `json:"sbx_default_mounts"`
+	SbxSetupCmd      string         `json:"sbx_setup_cmd"`
+	Plugins          []PluginConfig `json:"plugins"`
+}
+
+func configFilePath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude-tabs", "plugins.json")
+	return filepath.Join(home, ".claude-tabs", "config.json")
+}
+
+func loadConfig() Config {
+	cfg := Config{
+		SbxTemplate: "my-sbx:latest",
+	}
+	data, err := os.ReadFile(configFilePath())
+	if err != nil {
+		return cfg
+	}
+	json.Unmarshal(data, &cfg)
+	if cfg.SbxTemplate == "" {
+		cfg.SbxTemplate = "my-sbx:latest"
+	}
+	cfg.WorktreeBase = expandHome(cfg.WorktreeBase)
+	cfg.SbxSetupCmd = expandHome(cfg.SbxSetupCmd)
+	for i := range cfg.SbxDefaultMounts {
+		cfg.SbxDefaultMounts[i] = expandHome(cfg.SbxDefaultMounts[i])
+	}
+	for i := range cfg.Plugins {
+		cfg.Plugins[i].Source = expandHome(cfg.Plugins[i].Source)
+	}
+	return cfg
 }
 
 func expandHome(path string) string {
@@ -914,49 +962,19 @@ func expandHome(path string) string {
 	return path
 }
 
-func loadPluginConfigs() []PluginConfig {
-	data, err := os.ReadFile(pluginsFilePath())
-	if err != nil {
-		return nil
-	}
-	var configs []PluginConfig
-	if err := json.Unmarshal(data, &configs); err != nil {
-		return nil
-	}
-	for i := range configs {
-		configs[i].Source = expandHome(configs[i].Source)
-	}
-	return configs
-}
-
 func handlePresets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(loadPresets())
 }
 
-func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	repo := r.URL.Query().Get("repo")
-	branch := r.URL.Query().Get("branch")
-	if repo == "" || branch == "" {
-		http.Error(w, "repo and branch required", http.StatusBadRequest)
-		return
-	}
-
-	respond := func(status int, msg string) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(map[string]string{"message": msg})
-	}
+// worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
+func worktreeCreate(repo, branch string) error {
+	cfg := loadConfig()
 
 	// ghqからリポジトリ検索
 	ghqOut, err := exec.Command("ghq", "list", "-p").Output()
 	if err != nil {
-		respond(http.StatusInternalServerError, "ghq list failed: "+err.Error())
-		return
+		return fmt.Errorf("ghq list failed: %w", err)
 	}
 	var repoPath string
 	for _, line := range strings.Split(strings.TrimSpace(string(ghqOut)), "\n") {
@@ -966,80 +984,61 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if repoPath == "" {
-		respond(http.StatusBadRequest, "Repository not found: "+repo)
-		return
+		return fmt.Errorf("repository not found: %s", repo)
 	}
 
 	// worktree base
-	ghqRoot, err := exec.Command("ghq", "root").Output()
-	if err != nil {
-		respond(http.StatusInternalServerError, "ghq root failed")
-		return
-	}
-	wtBase := os.Getenv("CLAUDE_TABS_WORKTREE_BASE")
+	wtBase := cfg.WorktreeBase
 	if wtBase == "" {
+		ghqRoot, err := exec.Command("ghq", "root").Output()
+		if err != nil {
+			return fmt.Errorf("ghq root failed: %w", err)
+		}
 		wtBase = filepath.Join(strings.TrimSpace(string(ghqRoot)), "worktrees")
 	}
 	wtPath := filepath.Join(wtBase, repo, branch)
 	sbxName := repo + "-" + branch
-	template := os.Getenv("CLAUDE_TABS_SBX_TEMPLATE")
-	if template == "" {
-		template = "my-sbx:latest"
-	}
 
 	// worktree作成
 	if _, err := os.Stat(wtPath); err == nil {
-		// already exists, skip
+		fmt.Println("Worktree already exists:", wtPath)
 	} else {
-		// git fetch origin
 		if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
-			respond(http.StatusInternalServerError, "git fetch failed: "+string(out))
-			return
+			return fmt.Errorf("git fetch failed: %s", out)
 		}
-		// check if remote branch exists
 		if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
-				respond(http.StatusInternalServerError, "git worktree add failed: "+string(out))
-				return
+				return fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
-			// local branch exists
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
-				respond(http.StatusInternalServerError, "git worktree add failed: "+string(out))
-				return
+				return fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else {
-			// new branch
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "-b", branch).CombinedOutput(); err != nil {
-				respond(http.StatusInternalServerError, "git worktree add (new branch) failed: "+string(out))
-				return
+				return fmt.Errorf("git worktree add (new branch) failed: %s", out)
 			}
 		}
 	}
 
 	// sbx create
 	paths := []string{wtPath}
-	if mounts := os.Getenv("CLAUDE_TABS_SBX_DEFAULT_MOUNTS"); mounts != "" {
-		for _, m := range strings.Fields(mounts) {
-			paths = append(paths, m)
-		}
-	}
-	sbxArgs := []string{"create", "--name", sbxName, "-t", template, "claude"}
+	paths = append(paths, cfg.SbxDefaultMounts...)
+	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.SbxTemplate, "claude"}
 	sbxArgs = append(sbxArgs, paths...)
 	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
-		respond(http.StatusInternalServerError, "sbx create failed: "+string(out))
-		return
+		return fmt.Errorf("sbx create failed: %s", out)
 	}
 
 	// setup command (best effort)
-	if setupCmd := os.Getenv("CLAUDE_TABS_SBX_SETUP_CMD"); setupCmd != "" {
-		exec.Command("sbx", "exec", sbxName, "sh", "-c", setupCmd).Run()
+	if cfg.SbxSetupCmd != "" {
+		exec.Command("sbx", "exec", sbxName, "sh", "-c", cfg.SbxSetupCmd).Run()
 	}
-	// plugins install from plugins.json
-	for _, pc := range loadPluginConfigs() {
+
+	// plugins install
+	for _, pc := range cfg.Plugins {
 		exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pc.Source).Run()
 		if len(pc.Plugins) == 1 && pc.Plugins[0] == "auto" {
-			// auto-detect from local plugins/ directory
 			marketplaceName := ""
 			if mdata, err := os.ReadFile(filepath.Join(pc.Source, ".claude-plugin", "marketplace.json")); err == nil {
 				var mj struct{ Name string `json:"name"` }
@@ -1075,7 +1074,29 @@ tell application "iTerm2"
 end tell`, sbxName)
 	exec.Command("osascript", "-e", script).Run()
 
-	respond(http.StatusOK, "Worktree created and Claude started: "+sbxName)
+	fmt.Println("Worktree created and Claude started:", sbxName)
+	return nil
+}
+
+func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	repo := r.URL.Query().Get("repo")
+	branch := r.URL.Query().Get("branch")
+	if repo == "" || branch == "" {
+		http.Error(w, "repo and branch required", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := worktreeCreate(repo, branch); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: " + repo + "-" + branch})
 }
 
 func runServer() {
