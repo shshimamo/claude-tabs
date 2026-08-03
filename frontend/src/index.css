@@ -185,7 +185,6 @@ body {
 }
 
 /* Detail */
-.detail { max-width: 800px; }
 
 .detail-header {
   display: flex;
