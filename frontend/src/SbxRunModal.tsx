@@ -17,6 +17,7 @@ export default function SbxRunModal({ onClose }: Props) {
   // worktree mode
   const [wtRepo, setWtRepo] = useState('')
   const [wtBranch, setWtBranch] = useState('')
+  const [wtBase, setWtBase] = useState('')
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
 
@@ -42,7 +43,9 @@ export default function SbxRunModal({ onClose }: Props) {
         res = await fetch(`/api/sbx/run?sbx=${encodeURIComponent(sbx)}&repo=${encodeURIComponent(selectedRepo)}`, { method: 'POST' })
       } else {
         if (!wtRepo || !wtBranch) return
-        res = await fetch(`/api/sbx/attach-worktree?sbx=${encodeURIComponent(sbx)}&repo=${encodeURIComponent(wtRepo)}&branch=${encodeURIComponent(wtBranch)}`, { method: 'POST' })
+        const params = new URLSearchParams({ sbx, repo: wtRepo, branch: wtBranch })
+        if (wtBase.trim()) params.set('base', wtBase.trim())
+        res = await fetch(`/api/sbx/attach-worktree?${params}`, { method: 'POST' })
       }
       const data = await res.json()
       setResult({ ok: res.ok, message: data.message })
@@ -120,12 +123,30 @@ export default function SbxRunModal({ onClose }: Props) {
                 onChange={e => setWtRepo(e.target.value)}
                 placeholder="e.g. claude-tabs"
               />
-              <label className="modal-label">Branch</label>
+              <label className="modal-label">
+                Branch
+                <span className="tooltip-wrap">
+                  <span className="tooltip-icon">?</span>
+                  <span className="tooltip-content">
+                    1. worktree が既に存在 → そのまま使用{'\n'}
+                    2. origin/branch が存在 → リモートブランチから作成{'\n'}
+                    3. ローカルに branch が存在 → ローカルブランチから作成{'\n'}
+                    4. どちらもない → base branch (default: リポジトリのチェックアウト中ブランチ) から新規作成
+                  </span>
+                </span>
+              </label>
               <input
                 className="modal-input"
                 value={wtBranch}
                 onChange={e => setWtBranch(e.target.value)}
                 placeholder="e.g. feature/xxx"
+              />
+              <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
+              <input
+                className="modal-input"
+                value={wtBase}
+                onChange={e => setWtBase(e.target.value)}
+                placeholder="e.g. main, develop"
               />
             </>
           )}
@@ -139,8 +160,8 @@ export default function SbxRunModal({ onClose }: Props) {
 
           {sbx && mode === 'worktree' && wtRepo && wtBranch && (
             <div className="modal-steps">
-              <div className="modal-steps-label">実行内容</div>
-              <div className="modal-step">git worktree add ~/worktrees/{wtRepo}/{wtBranch}</div>
+              <div className="modal-steps-label">実行コマンド</div>
+              <div className="modal-step">git worktree add ~/worktrees/{wtRepo}/{wtBranch}{wtBase ? ` (base: ${wtBase})` : ''}</div>
               <div className="modal-step">sbx exec -it {sbx} sh -c 'cd .../{wtRepo}/{wtBranch} && claude'</div>
             </div>
           )}

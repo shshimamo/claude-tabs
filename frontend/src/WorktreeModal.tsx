@@ -16,6 +16,7 @@ type Props = {
 export default function WorktreeModal({ onClose }: Props) {
   const [repo, setRepo] = useState('')
   const [branch, setBranch] = useState('')
+  const [baseBranch, setBaseBranch] = useState('')
   const [creating, setCreating] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [cfg, setCfg] = useState<Config>({})
@@ -29,7 +30,9 @@ export default function WorktreeModal({ onClose }: Props) {
     setCreating(true)
     setResult(null)
     try {
-      const res = await fetch(`/api/worktree/create?repo=${encodeURIComponent(repo.trim())}&branch=${encodeURIComponent(branch.trim())}`, { method: 'POST' })
+      const params = new URLSearchParams({ repo: repo.trim(), branch: branch.trim() })
+      if (baseBranch.trim()) params.set('base', baseBranch.trim())
+      const res = await fetch(`/api/worktree/create?${params}`, { method: 'POST' })
       const data = await res.json()
       setResult({ ok: res.ok, message: data.message })
       if (res.ok) {
@@ -50,7 +53,7 @@ export default function WorktreeModal({ onClose }: Props) {
 
   const steps = useMemo(() => {
     const s: string[] = []
-    s.push(`git worktree add ${wtPath}`)
+    s.push(`git worktree add ${wtPath}${baseBranch.trim() ? ` (base: ${baseBranch.trim()})` : ''}`)
     const mounts = [wtPath, '~/.claude-tabs', ...(cfg.sbx_default_mounts || [])]
     const kits = (cfg.sbx_kits || []).map(k => `--kit ${k}`).join(' ')
     s.push(`sbx create --name ${sbxName} -t ${template}${kits ? ' ' + kits : ''} claude ${mounts.join(' ')}`)
@@ -88,12 +91,30 @@ export default function WorktreeModal({ onClose }: Props) {
             placeholder="e.g. claude-tabs"
             autoFocus
           />
-          <label className="modal-label">Branch</label>
+          <label className="modal-label">
+            Branch
+            <span className="tooltip-wrap">
+              <span className="tooltip-icon">?</span>
+              <span className="tooltip-content">
+                1. worktree が既に存在 → そのまま使用{'\n'}
+                2. origin/branch が存在 → リモートブランチから作成{'\n'}
+                3. ローカルに branch が存在 → ローカルブランチから作成{'\n'}
+                4. どちらもない → base branch (default: リポジトリのチェックアウト中ブランチ) から新規作成
+              </span>
+            </span>
+          </label>
           <input
             className="modal-input"
             value={branch}
             onChange={e => setBranch(e.target.value)}
             placeholder="e.g. feature/new-feature"
+          />
+          <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
+          <input
+            className="modal-input"
+            value={baseBranch}
+            onChange={e => setBaseBranch(e.target.value)}
+            placeholder="e.g. main, develop"
             onKeyDown={e => { if (e.key === 'Enter' && repo.trim() && branch.trim()) handleCreate() }}
           />
           {result && (

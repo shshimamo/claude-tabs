@@ -316,6 +316,7 @@ body {
 .detail-output-text {
   max-height: 300px;
   overflow-y: auto;
+  resize: both;
 }
 
 .detail-grid {
@@ -618,6 +619,43 @@ body {
   cursor: pointer;
 }
 .repo-item:hover { background: #313244; }
+
+.tooltip-wrap {
+  position: relative;
+  display: inline-block;
+  margin-left: 6px;
+}
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #45475a;
+  color: #cdd6f4;
+  font-size: 11px;
+  cursor: help;
+}
+.tooltip-content {
+  display: none;
+  position: absolute;
+  left: 24px;
+  top: -8px;
+  width: 420px;
+  padding: 10px 12px;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  color: #cdd6f4;
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 1.6;
+  white-space: pre-line;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.tooltip-wrap:hover .tooltip-content { display: block; }
 
 .modal-footer {
   display: flex;
