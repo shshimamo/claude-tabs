@@ -1360,22 +1360,28 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var repos []string
-	filepath.WalkDir(cfg.RepositoryBase, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return filepath.SkipDir
+	scanGitRepos := func(base string, maxDepth int) {
+		if base == "" {
+			return
 		}
-		if d.Name() == ".git" && d.IsDir() {
-			rel, _ := filepath.Rel(cfg.RepositoryBase, filepath.Dir(path))
-			repos = append(repos, rel)
-			return filepath.SkipDir
-		}
-		// max depth 4
-		rel, _ := filepath.Rel(cfg.RepositoryBase, path)
-		if strings.Count(rel, string(filepath.Separator)) >= 4 {
-			return filepath.SkipDir
-		}
-		return nil
-	})
+		filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return filepath.SkipDir
+			}
+			if d.Name() == ".git" {
+				rel, _ := filepath.Rel(base, filepath.Dir(path))
+				repos = append(repos, rel)
+				return filepath.SkipDir
+			}
+			rel, _ := filepath.Rel(base, path)
+			if strings.Count(rel, string(filepath.Separator)) >= maxDepth {
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	}
+	scanGitRepos(cfg.RepositoryBase, 4)
+	scanGitRepos(cfg.WorktreeBase, 2)
 	if repos == nil {
 		repos = []string{}
 	}
@@ -1395,7 +1401,14 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := loadConfig()
+	// worktree_base 配下に存在すればそちらを使う
 	fullPath := filepath.Join(cfg.RepositoryBase, repoPath)
+	if cfg.WorktreeBase != "" {
+		wtPath := filepath.Join(cfg.WorktreeBase, repoPath)
+		if _, err := os.Stat(wtPath); err == nil {
+			fullPath = wtPath
+		}
+	}
 
 	ts := getTerminalScripts(cfg)
 	command := fmt.Sprintf("sbx exec -it %s sh -c 'cd %s && claude'", sbxName, fullPath)
