@@ -583,6 +583,26 @@ body {
 .modal-result-ok { background: rgba(166,227,161,0.15); color: #a6e3a1; }
 .modal-result-err { background: rgba(243,139,168,0.15); color: #f38ba8; }
 
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin: 8px 0;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mode-tab {
+  flex: 1;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  color: #6c7086;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mode-tab:not(:last-child) { border-right: 1px solid #45475a; }
+.mode-tab-active { background: #313244; color: #cdd6f4; }
+
 .repo-list {
   max-height: 150px;
   overflow-y: auto;

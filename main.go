@@ -1426,6 +1426,104 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Claude started in " + sbxName + " at " + repoPath})
 }
 
+// createWorktreeOnly creates a worktree without creating a new sbx.
+func createWorktreeOnly(repo, branch string) (wtPath string, err error) {
+	cfg := loadConfig()
+
+	// repository_base からリポジトリ検索
+	var repoPath string
+	if cfg.RepositoryBase != "" {
+		filepath.WalkDir(cfg.RepositoryBase, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return filepath.SkipDir
+			}
+			if d.Name() == ".git" {
+				dir := filepath.Dir(path)
+				if filepath.Base(dir) == repo || strings.HasSuffix(dir, "/"+repo) {
+					repoPath = dir
+					return filepath.SkipAll
+				}
+				return filepath.SkipDir
+			}
+			rel, _ := filepath.Rel(cfg.RepositoryBase, path)
+			if strings.Count(rel, string(filepath.Separator)) >= 4 {
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	}
+	if repoPath == "" {
+		return "", fmt.Errorf("repository not found: %s", repo)
+	}
+
+	wtBase := cfg.WorktreeBase
+	if wtBase == "" {
+		home, _ := os.UserHomeDir()
+		wtBase = filepath.Join(home, "worktrees")
+	}
+	wtPath = filepath.Join(wtBase, repo, branch)
+
+	if _, statErr := os.Stat(wtPath); statErr == nil {
+		return wtPath, nil // already exists
+	}
+
+	if out, fetchErr := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); fetchErr != nil {
+		return "", fmt.Errorf("git fetch failed: %s", out)
+	}
+	if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
+		if out, addErr := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); addErr != nil {
+			return "", fmt.Errorf("git worktree add failed: %s", out)
+		}
+	} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
+		if out, addErr := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); addErr != nil {
+			return "", fmt.Errorf("git worktree add failed: %s", out)
+		}
+	} else {
+		if out, addErr := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "-b", branch).CombinedOutput(); addErr != nil {
+			return "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
+		}
+	}
+	return wtPath, nil
+}
+
+func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sbxName := r.URL.Query().Get("sbx")
+	repo := r.URL.Query().Get("repo")
+	branch := r.URL.Query().Get("branch")
+	if sbxName == "" || repo == "" || branch == "" {
+		http.Error(w, "sbx, repo, and branch required", http.StatusBadRequest)
+		return
+	}
+
+	wtPath, err := createWorktreeOnly(repo, branch)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	cfg := loadConfig()
+	ts := getTerminalScripts(cfg)
+	command := fmt.Sprintf("sbx exec -it %s sh -c 'cd %s && claude'", sbxName, wtPath)
+	script := strings.ReplaceAll(ts.NewTab, "{{COMMAND}}", command)
+	ttyOut, _ := exec.Command("osascript", "-e", script).Output()
+	tty := strings.TrimSpace(string(ttyOut))
+
+	w.Header().Set("Content-Type", "application/json")
+	if tty != "" {
+		s.mu.Lock()
+		s.pendingTTY[wtPath] = tty
+		s.pendingName[wtPath] = sbxName + ":" + repo + "/" + branch
+		s.mu.Unlock()
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started in " + sbxName})
+}
+
 func runServer() {
 	srv := newServer()
 	srv.loadSessions()
@@ -1460,6 +1558,7 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/list", handleSbxList)
 	mux.HandleFunc("/api/sbx/repos", handleRepoList)
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
+	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
 	mux.HandleFunc("/api/presets", handlePresets)
 	mux.HandleFunc("/api/config", handleConfig)
 
