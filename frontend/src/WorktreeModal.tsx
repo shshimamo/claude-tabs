@@ -92,7 +92,7 @@ export default function WorktreeModal({ onClose }: Props) {
             autoFocus
           />
           <label className="modal-label">
-            Branch
+            Branch / PR Link
             <span className="tooltip-wrap">
               <span className="tooltip-icon">?</span>
               <span className="tooltip-content">
@@ -107,7 +107,7 @@ export default function WorktreeModal({ onClose }: Props) {
             className="modal-input"
             value={branch}
             onChange={e => setBranch(e.target.value)}
-            placeholder="e.g. feature/new-feature"
+            placeholder="e.g. feature/xxx or https://github.com/.../pull/123"
           />
           <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
           <input

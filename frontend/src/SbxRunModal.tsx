@@ -124,7 +124,7 @@ export default function SbxRunModal({ onClose }: Props) {
                 placeholder="e.g. claude-tabs"
               />
               <label className="modal-label">
-                Branch
+                Branch / PR Link
                 <span className="tooltip-wrap">
                   <span className="tooltip-icon">?</span>
                   <span className="tooltip-content">
@@ -139,7 +139,7 @@ export default function SbxRunModal({ onClose }: Props) {
                 className="modal-input"
                 value={wtBranch}
                 onChange={e => setWtBranch(e.target.value)}
-                placeholder="e.g. feature/xxx"
+                placeholder="e.g. feature/xxx or https://github.com/.../pull/123"
               />
               <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
               <input

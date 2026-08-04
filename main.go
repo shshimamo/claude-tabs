@@ -1189,7 +1189,25 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
+// resolveBranch resolves a PR URL to a branch name using gh CLI.
+// If the input is not a PR URL, it returns the input as-is.
+func resolveBranch(input string) (branch string, err error) {
+	if strings.HasPrefix(input, "https://github.com/") && strings.Contains(input, "/pull/") {
+		out, err := exec.Command("gh", "pr", "view", input, "--json", "headRefName", "-q", ".headRefName").Output()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve PR: %s", input)
+		}
+		return strings.TrimSpace(string(out)), nil
+	}
+	return input, nil
+}
+
 func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err error) {
+	branch, err = resolveBranch(branch)
+	if err != nil {
+		return "", "", err
+	}
+
 	cfg := loadConfig()
 
 	// ghqからリポジトリ検索
@@ -1439,6 +1457,11 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 
 // createWorktreeOnly creates a worktree without creating a new sbx.
 func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err error) {
+	branch, err = resolveBranch(branch)
+	if err != nil {
+		return "", err
+	}
+
 	cfg := loadConfig()
 
 	// repository_base からリポジトリ検索
