@@ -45,10 +45,27 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [keysSent, setKeysSent] = useState(false)
   const [syncWaiting, setSyncWaiting] = useState(false)
   const [presets, setPresets] = useState<{ label: string; text: string }[]>([])
+  const [memo, setMemo] = useState('')
+  const [memoOpen, setMemoOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setKeysSent(false); setSyncWaiting(false) }, [session.status, session.last_output])
+
+  // Load memo from localStorage on session change
+  useEffect(() => {
+    const saved = localStorage.getItem(`memo:${session.session_id}`)
+    setMemo(saved || '')
+  }, [session.session_id])
+
+  const updateMemo = (text: string) => {
+    setMemo(text)
+    if (text) {
+      localStorage.setItem(`memo:${session.session_id}`, text)
+    } else {
+      localStorage.removeItem(`memo:${session.session_id}`)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/presets').then(r => r.json()).then(setPresets).catch(() => {})
@@ -198,6 +215,22 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           </div>
         </div>
       )}
+
+      <div className="detail-question">
+        <div className="detail-question-label memo-label" onClick={() => setMemoOpen(v => !v)} style={{ cursor: 'pointer' }}>
+          {memoOpen ? '▾' : '▸'} Memo
+          {!memoOpen && memo && <span className="memo-has-content">●</span>}
+        </div>
+        {memoOpen && (
+          <textarea
+            className="memo-textarea"
+            value={memo}
+            onChange={e => updateMemo(e.target.value)}
+            placeholder="メモを入力..."
+            rows={4}
+          />
+        )}
+      </div>
 
       {session.question && (
         <div className="detail-question">
