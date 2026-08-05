@@ -24,7 +24,16 @@ import (
 //go:embed all:frontend/dist
 var frontendFS embed.FS
 
-const addr = "localhost:6277"
+const defaultPort = 6277
+
+func getAddr() string {
+	cfg := loadConfig()
+	port := cfg.Port
+	if port <= 0 {
+		port = defaultPort
+	}
+	return fmt.Sprintf("localhost:%d", port)
+}
 
 // Session represents a Claude Code session
 type Session struct {
@@ -102,7 +111,7 @@ func main() {
 
 	// Client mode
 	if isServerRunning() {
-		browser.OpenURL("http://" + addr)
+		browser.OpenURL("http://" + getAddr())
 		return
 	}
 
@@ -120,7 +129,7 @@ func main() {
 }
 
 func isServerRunning() bool {
-	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
+	conn, err := net.DialTimeout("tcp", getAddr(), 500*time.Millisecond)
 	if err != nil {
 		return false
 	}
@@ -1041,6 +1050,7 @@ type Config struct {
 	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
 	RepositoryBase    string                     `json:"repository_base"`
 	ScreenLines       int                        `json:"screen_lines"`
+	Port              int                        `json:"port"`
 }
 
 func configFilePath() string {
@@ -1693,17 +1703,17 @@ func runServer() {
 		fileServer.ServeHTTP(w, r)
 	})
 
-	ln, err := net.Listen("tcp", addr)
+	ln, err := net.Listen("tcp", getAddr())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "claude-tabs: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("claude-tabs server running on http://%s\n", addr)
+	fmt.Printf("claude-tabs server running on http://%s\n", getAddr())
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		browser.OpenURL("http://" + addr)
+		browser.OpenURL("http://" + getAddr())
 	}()
 
 	http.Serve(ln, mux)
