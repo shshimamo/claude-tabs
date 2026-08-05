@@ -581,6 +581,42 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"result": result})
 }
 
+func (s *server) handleScreen(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	s.mu.RLock()
+	session, ok := s.sessions[id]
+	var tty string
+	if ok {
+		tty = session.TTY
+	}
+	s.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	if !ok || tty == "" {
+		json.NewEncoder(w).Encode(map[string]string{"content": ""})
+		return
+	}
+
+	ts := getTerminalScripts(loadConfig())
+	if ts.Screen == "" {
+		json.NewEncoder(w).Encode(map[string]string{"content": ""})
+		return
+	}
+
+	script := strings.ReplaceAll(ts.Screen, "{{TTY}}", tty)
+	out, err := exec.Command("osascript", "-e", script).Output()
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"content": ""})
+		return
+	}
+	content := strings.TrimSpace(string(out))
+	lines := strings.Split(content, "\n")
+	if len(lines) > 20 {
+		lines = lines[len(lines)-20:]
+	}
+	json.NewEncoder(w).Encode(map[string]string{"content": strings.Join(lines, "\n")})
+}
+
 func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -985,6 +1021,7 @@ type TerminalScripts struct {
 	Input    string `json:"input"`
 	Keys     string `json:"keys"`
 	NewTab   string `json:"new_tab"`
+	Screen   string `json:"screen"`
 }
 
 type Config struct {
@@ -1090,6 +1127,18 @@ end tell`,
 		end tell
 	end tell
 end tell`,
+		Screen: `tell application "iTerm2"
+	repeat with w in windows
+		repeat with t in tabs of w
+			repeat with s in sessions of t
+				if tty of s is "{{TTY}}" then
+					return contents of s
+				end if
+			end repeat
+		end repeat
+	end repeat
+	return ""
+end tell`,
 	},
 	"terminal": {
 		Focus: `tell application "Terminal"
@@ -1119,6 +1168,16 @@ return "sent"`,
 		NewTab: `tell application "Terminal"
 	do script "{{COMMAND}}"
 	return tty of selected tab of front window
+end tell`,
+		Screen: `tell application "Terminal"
+	repeat with w in windows
+		repeat with t in tabs of w
+			if tty of t is "{{TTY}}" then
+				return contents of t
+			end if
+		end repeat
+	end repeat
+	return ""
 end tell`,
 	},
 }
@@ -1596,6 +1655,7 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/name", srv.handleRenameSession)
 	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
+	mux.HandleFunc("/api/sessions/screen", srv.handleScreen)
 	mux.HandleFunc("/api/sessions/input", srv.handleSendInput)
 	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)

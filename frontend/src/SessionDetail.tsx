@@ -47,6 +47,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [presets, setPresets] = useState<{ label: string; text: string }[]>([])
   const [memo, setMemo] = useState('')
   const [memoOpen, setMemoOpen] = useState(false)
+  const [screenContent, setScreenContent] = useState('')
+  const [screenLoading, setScreenLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -134,6 +136,24 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     setFocusing(false)
   }
 
+  const fetchScreen = async () => {
+    setScreenLoading(true)
+    try {
+      const res = await fetch(`/api/sessions/screen?id=${session.session_id}`)
+      const data = await res.json()
+      setScreenContent(data.content || '')
+    } catch { setScreenContent('') }
+    setScreenLoading(false)
+  }
+
+  // Auto-fetch terminal preview + polling every 5s (except idle)
+  useEffect(() => {
+    if (!session.tty || session.status === 'idle') return
+    fetchScreen()
+    const id = setInterval(fetchScreen, 5000)
+    return () => clearInterval(id)
+  }, [session.session_id, session.tty, session.status])
+
   const displayName = session.custom_name || session.project_name
 
   return (
@@ -190,6 +210,18 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         </div>
       )}
 
+      {session.tty && session.status !== 'idle' && (
+        <div className="detail-question">
+          <div className="detail-question-label">
+            Terminal Preview
+            <button className="screen-refresh-btn" onClick={fetchScreen} disabled={screenLoading}>
+              {screenLoading ? '...' : '↻'}
+            </button>
+          </div>
+          <pre className="screen-content">{screenContent || (screenLoading ? '読み込み中...' : '内容なし')}</pre>
+        </div>
+      )}
+
       {['idle', 'waiting_input'].includes(session.status) && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
           <div className="detail-input-label">定型文</div>
@@ -231,6 +263,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           />
         )}
       </div>
+
 
       {session.question && (
         <div className="detail-question">

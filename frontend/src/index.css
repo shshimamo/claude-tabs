@@ -457,6 +457,34 @@ body {
 }
 .memo-textarea:focus { outline: none; border-color: #89b4fa; }
 
+/* Screen */
+.screen-refresh-btn {
+  background: none;
+  border: 1px solid #45475a;
+  color: #cdd6f4;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.screen-refresh-btn:hover { background: #313244; }
+.screen-content {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  color: #cdd6f4;
+  background: #11111b;
+  border: 1px solid #313244;
+  border-radius: 6px;
+  padding: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 0;
+}
+
 /* History */
 .history-section {
   margin-top: 24px;
