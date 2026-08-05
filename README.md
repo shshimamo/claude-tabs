@@ -250,7 +250,6 @@ Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 
 `~/.claude-tabs` のマウントとシンボリックリンク作成はコードで自動実行されるため手動設定は不要。
 
 
-
 ### ターミナル設定
 
 config.json 表の `ターミナル設定` で設定。
