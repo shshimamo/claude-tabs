@@ -609,10 +609,15 @@ func (s *server) handleScreen(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"content": ""})
 		return
 	}
+	cfg := loadConfig()
+	maxLines := cfg.ScreenLines
+	if maxLines <= 0 {
+		maxLines = 20
+	}
 	content := strings.TrimSpace(string(out))
 	lines := strings.Split(content, "\n")
-	if len(lines) > 20 {
-		lines = lines[len(lines)-20:]
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
 	}
 	json.NewEncoder(w).Encode(map[string]string{"content": strings.Join(lines, "\n")})
 }
@@ -1035,6 +1040,7 @@ type Config struct {
 	Terminal          string                     `json:"terminal"`
 	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
 	RepositoryBase    string                     `json:"repository_base"`
+	ScreenLines       int                        `json:"screen_lines"`
 }
 
 func configFilePath() string {
