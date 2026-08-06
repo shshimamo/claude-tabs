@@ -176,6 +176,30 @@ export default function App() {
     await fetch(`/api/sessions/focus?id=${encodeURIComponent(id)}`, { method: 'POST' })
   }, [])
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebar-width')
+    return saved ? parseInt(saved, 10) : 260
+  })
+  const dragging = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragging.current = true
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return
+      const w = Math.max(150, Math.min(600, e.clientX))
+      setSidebarWidth(w)
+    }
+    const onUp = () => {
+      dragging.current = false
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      setSidebarWidth(prev => { localStorage.setItem('sidebar-width', String(prev)); return prev })
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
+
   const [wtModalOpen, setWtModalOpen] = useState(false)
   const [sbxRunOpen, setSbxRunOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
@@ -208,7 +232,9 @@ export default function App() {
           onSelect={setSelectedId}
           onDelete={handleDelete}
           onFocus={handleFocus}
+          width={sidebarWidth}
         />
+        <div className="sidebar-resize-handle" onMouseDown={handleMouseDown} />
         <main className="main">
           {selected ? (
             <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} />

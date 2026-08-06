@@ -31,9 +31,10 @@ type Props = {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   onFocus: (id: string) => void
+  width: number
 }
 
-export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus }: Props) {
+export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus, width }: Props) {
   const grouped = STATUS_ORDER.map(status => ({
     status,
     config: STATUS_CONFIG[status] ?? { label: status, icon: '?', color: '#cdd6f4' },
@@ -41,7 +42,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
   })).filter(g => g.items.length > 0)
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={{ width }}>
       <div className="sidebar-header">
         <span className="sidebar-title">Sessions</span>
       </div>
