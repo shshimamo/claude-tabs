@@ -33,6 +33,8 @@
     }
   ],
   "repository_base": "~/devel/src",
+  "screen_lines": 20,
+  "port": 6277,
   "terminal": "iterm2",
   "terminal_presets": {
     "iterm2": {

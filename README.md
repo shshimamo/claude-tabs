@@ -11,11 +11,14 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - ステータス別グルーピング
 - セッション名のカスタマイズ
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
+- セッションメモ（localStorage 永続化、リロードしても保持）
+- サイドバー幅のドラッグリサイズ（localStorage 永続化）
 
 ### ターミナル操作
 - ターミナルフォーカス（iTerm2 / Terminal.app / カスタム対応）
 - ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
-- 許可プロンプトの操作（Allow / Allow Always / Deny）
+- 許可プロンプトの操作（Allow / Allow Always / Deny / Sync待ち）
+- Terminal Preview（ターミナル画面の末尾を表示、idle 以外で5秒間隔自動リフレッシュ）
 
 ### 通知
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
@@ -24,10 +27,13 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 ### Worktree + sbx
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
 - セッション削除時の Worktree / sbx 同時削除
+- Base Branch 指定（worktree 作成時のベースブランチ）
+- PR リンクからブランチ自動解決（`gh pr view` 使用）
 
 ### Attach sbx
 - 既存 sbx にアタッチして任意のリポジトリで Claude 起動
 - `repository_base` 配下の Git リポジトリを自動検出・フィルタ選択
+- New worktree モード（worktree 作成 + 既存 sbx にアタッチ）
 
 ### 設定・表示
 - AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
@@ -98,6 +104,7 @@ claude-tabs/
 | macOS + osascript | ターミナル操作（フォーカス・入力送信） | ○ |
 | git | Worktree 作成・削除 | Worktree 機能使用時 |
 | sbx | サンドボックス環境 | Worktree + sbx 連携時 |
+| gh | PR リンクからブランチ解決 | PR リンク使用時 |
 
 ## 起動手順
 
@@ -216,6 +223,8 @@ make install
 | `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
+| `screen_lines`         | Terminal Preview      | ターミナルプレビューの表示行数 | `20` |
+| `port`                 | サーバー設定           | サーバーのリッスンポート | `6277` |
 | `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
 | `terminal_presets`     | ターミナル連携           | ターミナル操作の AppleScript 定義（カスタムターミナル対応用） | 内蔵(iterm2, terminal) |
 
@@ -239,7 +248,7 @@ config.json 表の `定型文カスタマイズ` で設定。
 
 config.json 表の `Worktree + sbx 連携` で設定。
 
-Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
+Web UI の「+ Create sbx」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
 #### sbx 側の必須セットアップ
 
@@ -248,8 +257,6 @@ Web UI の「+ New Worktree」ボタン(または CLI) から、worktree 作成 
    - hooks 設定は `sbx_post_create_cmds` に含めることで自動化できる（参考: [`examples/sbx-setup.sh`](examples/sbx-setup.sh)）。
 
 `~/.claude-tabs` のマウントとシンボリックリンク作成はコードで自動実行されるため手動設定は不要。
-
-
 
 ### ターミナル設定
 
