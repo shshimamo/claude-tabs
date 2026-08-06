@@ -330,6 +330,20 @@ body {
   gap: 12px;
 }
 
+.detail-field-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 4px;
+}
+.detail-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detail-field-inline .detail-label {
+  flex-shrink: 0;
+}
+
 .detail-field {
   display: flex;
   flex-direction: column;
@@ -358,7 +372,9 @@ body {
 .detail-actions {
   margin-bottom: 16px;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .action-btn {

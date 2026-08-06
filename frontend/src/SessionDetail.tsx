@@ -45,6 +45,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [keysSent, setKeysSent] = useState(false)
   const [syncWaiting, setSyncWaiting] = useState(false)
   const [presets, setPresets] = useState<{ label: string; text: string }[]>([])
+  const [cwdBases, setCwdBases] = useState<string[]>([])
   const [memo, setMemo] = useState('')
   const [memoOpen, setMemoOpen] = useState(false)
   const [screenContent, setScreenContent] = useState('')
@@ -71,6 +72,13 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
   useEffect(() => {
     fetch('/api/presets').then(r => r.json()).then(setPresets).catch(() => {})
+    fetch('/api/config').then(r => r.json()).then((cfg: Record<string, string>) => {
+      const bases: string[] = []
+      for (const key of ['repository_base', 'worktree_base']) {
+        if (cfg[key]) bases.push(cfg[key])
+      }
+      setCwdBases(bases)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -154,6 +162,15 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     return () => clearInterval(id)
   }, [session.session_id, session.tty, session.status])
 
+  const displayCwd = (() => {
+    for (const base of cwdBases) {
+      const expanded = base.replace(/^~/, session.cwd.match(/^\/Users\/[^/]+/)?.[0] || '')
+      if (session.cwd.startsWith(expanded + '/')) {
+        return session.cwd.slice(expanded.length + 1)
+      }
+    }
+    return session.cwd
+  })()
   const displayName = session.custom_name || session.project_name
 
   return (
@@ -186,6 +203,30 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             {focusing ? 'Focusing...' : '🖥 Focus Terminal'}
           </button>
         )}
+        <div className="detail-field-inline">
+          <span className="detail-label">CWD</span>
+          <span className="detail-value detail-mono">{displayCwd}</span>
+        </div>
+        <div className="detail-field-inline">
+          <span className="detail-label">TTY</span>
+          {editingTTY ? (
+            <input
+              ref={ttyInputRef}
+              className="detail-name-input"
+              style={{ fontSize: 14 }}
+              value={editTTY}
+              placeholder="/dev/ttys001 (sbx等リモート環境のFocus Terminal用)"
+              onChange={e => setEditTTY(e.target.value)}
+              onBlur={submitTTY}
+              onKeyDown={e => { if (e.key === 'Enter') submitTTY(); if (e.key === 'Escape') setEditingTTY(false) }}
+            />
+          ) : (
+            <span className="detail-value detail-mono" onClick={startEditTTY} style={{ cursor: 'pointer' }}>
+              {session.tty || <span style={{ color: '#6c7086' }}>Click to set TTY</span>}
+              <span className="edit-icon" style={{ opacity: 0.5, marginLeft: 6 }}>✎</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
@@ -290,32 +331,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
       <div className="detail-grid">
         <div className="detail-field">
-          <span className="detail-label">CWD</span>
-          <span className="detail-value detail-mono">{session.cwd}</span>
-        </div>
-        <div className="detail-field">
           <span className="detail-label">PID</span>
           <span className="detail-value detail-mono">{session.pid || '-'}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">TTY</span>
-          {editingTTY ? (
-            <input
-              ref={ttyInputRef}
-              className="detail-name-input"
-              style={{ fontSize: 14 }}
-              value={editTTY}
-              placeholder="/dev/ttys001 (sbx等リモート環境のFocus Terminal用)"
-              onChange={e => setEditTTY(e.target.value)}
-              onBlur={submitTTY}
-              onKeyDown={e => { if (e.key === 'Enter') submitTTY(); if (e.key === 'Escape') setEditingTTY(false) }}
-            />
-          ) : (
-            <span className="detail-value detail-mono" onClick={startEditTTY} style={{ cursor: 'pointer' }}>
-              {session.tty || <span style={{ color: '#6c7086' }}>Click to set TTY</span>}
-              <span className="edit-icon" style={{ opacity: 0.5, marginLeft: 6 }}>✎</span>
-            </span>
-          )}
         </div>
         <div className="detail-field">
           <span className="detail-label">Session ID</span>
