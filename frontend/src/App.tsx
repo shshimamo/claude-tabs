@@ -65,6 +65,7 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null)
   const prevSessionsRef = useRef<Map<string, string>>(new Map())
   const [statusColors, setStatusColors] = useState<Record<string, { color: string; opacity: number }>>({})
+  const [autoFocus, setAutoFocus] = useState(false)
 
   // Request notification permission + load config on mount
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function App() {
     }
     fetch('/api/config').then(r => r.json()).then(cfg => {
       if (cfg.status_colors) setStatusColors(cfg.status_colors)
+      if (cfg.auto_focus) setAutoFocus(true)
     }).catch(() => {})
   }, [])
 
@@ -238,7 +240,7 @@ export default function App() {
         <Sidebar
           sessions={sessions}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(id: string) => { setSelectedId(id); if (autoFocus) handleFocus(id) }}
           onDelete={handleDelete}
           onFocus={handleFocus}
           width={sidebarWidth}
