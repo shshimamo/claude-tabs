@@ -401,6 +401,26 @@ body {
 .detail-output-text th {
   background: rgba(137, 180, 250, 0.15);
 }
+.output-light {
+  background: #eff1f5;
+  color: #4c4f69;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.output-light th {
+  background: rgba(30, 102, 245, 0.1);
+}
+.output-light th,
+.output-light td {
+  border-color: #bcc0cc;
+}
+.output-light code {
+  background: #dce0e8;
+  color: #4c4f69;
+}
+.output-light a {
+  color: #1e66f5;
+}
 
 .detail-grid {
   display: flex;

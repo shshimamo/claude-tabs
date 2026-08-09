@@ -55,6 +55,9 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [outputMode, setOutputMode] = useState<'text' | 'md'>(() => {
     return (localStorage.getItem('output-mode') as 'text' | 'md') || 'text'
   })
+  const [outputLight, setOutputLight] = useState(() => {
+    return localStorage.getItem('output-light') === '1'
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -327,8 +330,13 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
               onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
             >{outputMode === 'text' ? 'MD' : 'Text'}</button>
+            <button
+              className="action-btn"
+              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+              onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
+            >{outputLight ? '🌙' : '☀️'}</button>
           </div>
-          <div className="detail-question-text detail-output-text">
+          <div className={`detail-question-text detail-output-text${outputLight ? ' output-light' : ''}`}>
             {outputMode === 'md'
               ? <Markdown remarkPlugins={[remarkGfm]}>{unescapeUnicode(session.last_output)}</Markdown>
               : unescapeUnicode(session.last_output)}
