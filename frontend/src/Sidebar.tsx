@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import type { Session } from './App'
 
 const STATUS_ORDER = ['waiting_input', 'permission_required', 'ai_working', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
@@ -12,6 +13,20 @@ const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string
   inactive_12h:        { label: '12時間経過',   icon: '⏸️', color: '#484764' },
   inactive_24h:        { label: '24時間経過',   icon: '⏸️', color: '#45475a' },
   terminated:          { label: '終了',         icon: '⛔', color: '#45475a' },
+}
+
+const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
+
+type Group = { name: string; sessionIds: string[]; collapsed: boolean }
+
+function loadGroups(): Group[] {
+  try {
+    return JSON.parse(localStorage.getItem('sidebar-groups') || '[]')
+  } catch { return [] }
+}
+
+function saveGroups(groups: Group[]) {
+  localStorage.setItem('sidebar-groups', JSON.stringify(groups))
 }
 
 function timeAgo(dateStr: string): string {
@@ -35,54 +50,195 @@ type Props = {
 }
 
 export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus, width }: Props) {
-  const grouped = STATUS_ORDER.map(status => ({
+  const [groups, setGroups] = useState<Group[]>(loadGroups)
+  const [editingGroup, setEditingGroup] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const editRef = useRef<HTMLInputElement>(null)
+  const [dragSessionId, setDragSessionId] = useState<string | null>(null)
+
+  useEffect(() => { saveGroups(groups) }, [groups])
+  useEffect(() => { if (editingGroup !== null) editRef.current?.focus() }, [editingGroup])
+
+  // Clean up stale session IDs from groups
+  useEffect(() => {
+    const sessionIds = new Set(sessions.map(s => s.session_id))
+    const cleaned = groups.map(g => ({
+      ...g,
+      sessionIds: g.sessionIds.filter(id => sessionIds.has(id)),
+    }))
+    if (JSON.stringify(cleaned) !== JSON.stringify(groups)) setGroups(cleaned)
+  }, [sessions])
+
+  const groupedSessionIds = new Set(groups.flatMap(g => g.sessionIds))
+  const ungrouped = sessions.filter(s => !groupedSessionIds.has(s.session_id))
+
+  const statusGrouped = STATUS_ORDER.map(status => ({
     status,
     config: STATUS_CONFIG[status] ?? { label: status, icon: '?', color: '#cdd6f4' },
-    items: sessions.filter(s => s.status === status),
+    items: ungrouped.filter(s => s.status === status),
   })).filter(g => g.items.length > 0)
+
+  const addGroup = () => {
+    const newGroup: Group = { name: 'New Group', sessionIds: [], collapsed: false }
+    setGroups([...groups, newGroup])
+    setEditingGroup(groups.length)
+    setEditName('New Group')
+  }
+
+  const renameGroup = (idx: number) => {
+    setEditingGroup(idx)
+    setEditName(groups[idx].name)
+  }
+
+  const submitRename = (idx: number) => {
+    setEditingGroup(null)
+    const name = editName.trim()
+    if (!name) return
+    setGroups(groups.map((g, i) => i === idx ? { ...g, name } : g))
+  }
+
+  const deleteGroup = (idx: number) => {
+    setGroups(groups.filter((_, i) => i !== idx))
+  }
+
+  const toggleCollapse = (idx: number) => {
+    setGroups(groups.map((g, i) => i === idx ? { ...g, collapsed: !g.collapsed } : g))
+  }
+
+  // Drag handlers
+  const handleDragStart = (sessionId: string) => {
+    setDragSessionId(sessionId)
+  }
+
+  const handleDropOnGroup = (groupIdx: number) => {
+    if (!dragSessionId) return
+    setGroups(prev => {
+      const next = prev.map((g, i) => ({
+        ...g,
+        sessionIds: g.sessionIds.filter(id => id !== dragSessionId),
+      }))
+      next[groupIdx] = { ...next[groupIdx], sessionIds: [...next[groupIdx].sessionIds, dragSessionId] }
+      return next
+    })
+    setDragSessionId(null)
+  }
+
+  const handleDropOnUngrouped = () => {
+    if (!dragSessionId) return
+    setGroups(prev => prev.map(g => ({
+      ...g,
+      sessionIds: g.sessionIds.filter(id => id !== dragSessionId),
+    })))
+    setDragSessionId(null)
+  }
+
+  const sessionMap = new Map(sessions.map(s => [s.session_id, s]))
+
+  const renderSession = (session: Session) => {
+    const config = STATUS_CONFIG[session.status] ?? { label: session.status, icon: '?', color: '#cdd6f4' }
+    const attention = ATTENTION_STATUSES.includes(session.status)
+    return (
+      <div
+        key={session.session_id}
+        className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}`}
+        onClick={() => onSelect(session.session_id)}
+        onDoubleClick={() => onFocus(session.session_id)}
+        draggable
+        onDragStart={() => handleDragStart(session.session_id)}
+      >
+        <div className="sidebar-item-main">
+          <span
+            className={`status-dot${session.status === 'ai_working' ? ' status-dot-working' : ''}`}
+            style={{ background: config.color }}
+          />
+          <span className="sidebar-project">{session.custom_name || session.project_name}</span>
+        </div>
+        <div className="sidebar-item-meta">
+          <span className="sidebar-time">{timeAgo(session.last_updated)}</span>
+          <button
+            className="delete-btn"
+            onClick={e => { e.stopPropagation(); onDelete(session.session_id) }}
+            title="Delete"
+          >×</button>
+        </div>
+      </div>
+    )
+  }
+
+  const getGroupBadge = (group: Group) => {
+    let count = 0
+    for (const id of group.sessionIds) {
+      const s = sessionMap.get(id)
+      if (s && ATTENTION_STATUSES.includes(s.status)) count++
+    }
+    return count
+  }
 
   return (
     <aside className="sidebar" style={{ width }}>
       <div className="sidebar-header">
         <span className="sidebar-title">Sessions</span>
+        <button className="group-add-btn" onClick={addGroup} title="Add group">+</button>
       </div>
       <div className="sidebar-content">
-        {grouped.map(group => (
-          <div key={group.status} className="sidebar-group">
-            <div className="sidebar-group-label">
-              <span>{group.config.icon}</span>
-              <span>{group.config.label}</span>
-              <span className="sidebar-group-count">{group.items.length}</span>
-            </div>
-            {group.items.map(session => {
-              const attention = ['waiting_input', 'permission_required'].includes(session.status)
-              return (
-              <div
-                key={session.session_id}
-                className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}`}
-                onClick={() => onSelect(session.session_id)}
-                onDoubleClick={() => onFocus(session.session_id)}
-              >
-                <div className="sidebar-item-main">
-                  <span
-                    className={`status-dot${session.status === 'ai_working' ? ' status-dot-working' : ''}`}
-                    style={{ background: group.config.color }}
+        {groups.map((group, idx) => {
+          const badge = getGroupBadge(group)
+          return (
+            <div
+              key={idx}
+              className="sidebar-group"
+              onDragOver={e => e.preventDefault()}
+              onDrop={() => handleDropOnGroup(idx)}
+            >
+              <div className="sidebar-group-label group-header">
+                <span className="group-collapse" onClick={() => toggleCollapse(idx)}>
+                  {group.collapsed ? '▸' : '▾'}
+                </span>
+                {editingGroup === idx ? (
+                  <input
+                    ref={editRef}
+                    className="group-name-input"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={() => submitRename(idx)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitRename(idx); if (e.key === 'Escape') setEditingGroup(null) }}
                   />
-                  <span className="sidebar-project">{session.custom_name || session.project_name}</span>
-                </div>
-                <div className="sidebar-item-meta">
-                  <span className="sidebar-time">{timeAgo(session.last_updated)}</span>
-                  <button
-                      className="delete-btn"
-                      onClick={e => { e.stopPropagation(); onDelete(session.session_id) }}
-                      title="Delete"
-                    >×</button>
-                </div>
+                ) : (
+                  <span className="group-name" onDoubleClick={() => renameGroup(idx)}>{group.name}</span>
+                )}
+                {badge > 0 && <span className="group-badge">{badge}</span>}
+                <span className="sidebar-group-count">{group.sessionIds.length}</span>
+                <button
+                  className="group-delete-btn"
+                  onClick={() => deleteGroup(idx)}
+                  title="Delete group"
+                >×</button>
               </div>
-              )
-            })}
-          </div>
-        ))}
+              {!group.collapsed && group.sessionIds.map(id => {
+                const s = sessionMap.get(id)
+                return s ? renderSession(s) : null
+              })}
+            </div>
+          )
+        })}
+
+        <div
+          className="sidebar-ungrouped"
+          onDragOver={e => e.preventDefault()}
+          onDrop={handleDropOnUngrouped}
+        >
+          {statusGrouped.map(group => (
+            <div key={group.status} className="sidebar-group">
+              <div className="sidebar-group-label">
+                <span>{group.config.icon}</span>
+                <span>{group.config.label}</span>
+                <span className="sidebar-group-count">{group.items.length}</span>
+              </div>
+              {group.items.map(renderSession)}
+            </div>
+          ))}
+        </div>
+
         {sessions.length === 0 && (
           <div className="sidebar-empty">セッションなし</div>
         )}
