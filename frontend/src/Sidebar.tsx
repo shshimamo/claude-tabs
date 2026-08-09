@@ -59,8 +59,9 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
   useEffect(() => { saveGroups(groups) }, [groups])
   useEffect(() => { if (editingGroup !== null) editRef.current?.focus() }, [editingGroup])
 
-  // Clean up stale session IDs from groups
+  // Clean up stale session IDs (skip when sessions is empty to avoid clearing on reconnect)
   useEffect(() => {
+    if (sessions.length === 0) return
     const sessionIds = new Set(sessions.map(s => s.session_id))
     const cleaned = groups.map(g => ({
       ...g,
