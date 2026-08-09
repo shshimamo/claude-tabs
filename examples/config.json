@@ -44,7 +44,9 @@
     "inactive_24h":        { "color": "69, 71, 90",    "opacity": 0.0 },
     "terminated":          { "color": "69, 71, 90",    "opacity": 0.0 }
   },
-  "auto_focus": false,
+  "focus_terminal_on_select": false,
+  "focus_browser_on_attention": false,
+  "browser_app": "",
   "screen_lines": 20,
   "port": 6277,
   "terminal": "iterm2",

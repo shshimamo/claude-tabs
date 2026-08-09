@@ -352,9 +352,45 @@ func (s *server) handleFileChange(filePath string) {
 			}
 		}
 	}
+	oldSession := s.sessions[session.SessionID]
+	oldStatus := ""
+	if oldSession != nil {
+		oldStatus = oldSession.Status
+	}
 	s.sessions[session.SessionID] = &session
 	s.mu.Unlock()
 	s.broadcastSessions()
+
+	// Auto-activate browser on attention status change
+	if oldStatus != session.Status && (session.Status == "waiting_input" || session.Status == "permission_required") {
+		cfg := loadConfig()
+		if cfg.FocusBrowserOnAttention {
+			go activateBrowser(cfg)
+		}
+	}
+}
+
+func activateBrowser(cfg Config) {
+	var script string
+	if cfg.BrowserApp != "" {
+		script = fmt.Sprintf(`tell application "%s" to activate`, cfg.BrowserApp)
+	} else {
+		addr := getAddr()
+		script = fmt.Sprintf(`tell application "Google Chrome"
+	activate
+	repeat with w in windows
+		repeat with t in tabs of w
+			if URL of t contains "%s" then
+				set active tab index of w to (index of t)
+				set index of w to 1
+				return "found"
+			end if
+		end repeat
+	end repeat
+	return "not_found"
+end tell`, addr)
+	}
+	exec.Command("osascript", "-e", script).Run()
 }
 
 var inactiveThresholds = []struct {
@@ -588,6 +624,13 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"result": result})
+}
+
+func handleActivateBrowser(w http.ResponseWriter, r *http.Request) {
+	cfg := loadConfig()
+	activateBrowser(cfg)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"result": "ok"})
 }
 
 func (s *server) handleScreen(w http.ResponseWriter, r *http.Request) {
@@ -1051,6 +1094,8 @@ type Config struct {
 	RepositoryBase    string                     `json:"repository_base"`
 	ScreenLines       int                        `json:"screen_lines"`
 	Port              int                        `json:"port"`
+	BrowserApp        string                     `json:"browser_app"`
+	FocusBrowserOnAttention      bool                       `json:"focus_browser_on_attention"`
 }
 
 func configFilePath() string {
@@ -1672,6 +1717,7 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/tty", srv.handleSetTTY)
 	mux.HandleFunc("/api/sessions/focus", srv.handleFocusTerminal)
 	mux.HandleFunc("/api/sessions/screen", srv.handleScreen)
+	mux.HandleFunc("/api/browser/activate", handleActivateBrowser)
 	mux.HandleFunc("/api/sessions/input", srv.handleSendInput)
 	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
