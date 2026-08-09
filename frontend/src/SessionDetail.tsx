@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import mermaid from 'mermaid'
+import { ShikiHighlighter } from 'react-shiki'
 import type { Session } from './App'
 
 mermaid.initialize({ startOnLoad: false, theme: 'dark' })
@@ -358,8 +359,13 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             {outputMode === 'md'
               ? <Markdown remarkPlugins={[remarkGfm]} components={{
                   code({ className, children }) {
+                    const code = String(children).trim()
                     if (className === 'language-mermaid') {
-                      return <MermaidBlock code={String(children).trim()} light={outputLight} />
+                      return <MermaidBlock code={code} light={outputLight} />
+                    }
+                    const lang = className?.replace('language-', '')
+                    if (lang) {
+                      return <ShikiHighlighter language={lang} theme={outputLight ? 'github-light' : 'github-dark'}>{code}</ShikiHighlighter>
                     }
                     return <code className={className}>{children}</code>
                   }
