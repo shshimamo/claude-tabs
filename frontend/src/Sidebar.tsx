@@ -1,6 +1,6 @@
 import type { Session } from './App'
 
-const STATUS_ORDER = ['ai_working', 'waiting_input', 'permission_required', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
+const STATUS_ORDER = ['waiting_input', 'permission_required', 'ai_working', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   ai_working:          { label: 'AI作業中',     icon: '⚡', color: '#89b4fa' },
