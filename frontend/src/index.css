@@ -387,6 +387,20 @@ body {
 .detail-output-text {
   overflow-y: auto;
 }
+.detail-output-text table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+}
+.detail-output-text th,
+.detail-output-text td {
+  border: 1px solid #585b70;
+  padding: 4px 8px;
+  text-align: left;
+}
+.detail-output-text th {
+  background: rgba(137, 180, 250, 0.15);
+}
 
 .detail-grid {
   display: flex;

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Session } from './App'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
@@ -50,6 +52,9 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [screenContent, setScreenContent] = useState('')
   const [screenLoading, setScreenLoading] = useState(false)
+  const [outputMode, setOutputMode] = useState<'text' | 'md'>(() => {
+    return (localStorage.getItem('output-mode') as 'text' | 'md') || 'text'
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -315,10 +320,19 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
       {session.last_output && (
         <div className="detail-question">
-          <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1' }}>
-            {session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}
+          <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}</span>
+            <button
+              className="action-btn"
+              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+              onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
+            >{outputMode === 'text' ? 'MD' : 'Text'}</button>
           </div>
-          <div className="detail-question-text detail-output-text">{unescapeUnicode(session.last_output)}</div>
+          <div className="detail-question-text detail-output-text">
+            {outputMode === 'md'
+              ? <Markdown remarkPlugins={[remarkGfm]}>{unescapeUnicode(session.last_output)}</Markdown>
+              : unescapeUnicode(session.last_output)}
+          </div>
         </div>
       )}
 
