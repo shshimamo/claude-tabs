@@ -12,17 +12,21 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - セッション名のカスタマイズ
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
 - セッションメモ（localStorage 永続化、リロードしても保持）
+- サイドバーのカスタムグループ（ドラッグ&ドロップ、折りたたみ、アテンションバッジ）
 - サイドバー幅のドラッグリサイズ（localStorage 永続化）
+- 削除時 /exit 送信オプション
 
 ### ターミナル操作
 - ターミナルフォーカス（iTerm2 / Terminal.app / カスタム対応）
 - ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
 - 許可プロンプトの操作（Allow / Allow Always / Deny / Sync待ち）
 - Terminal Preview（ターミナル画面の末尾を表示、idle 以外で5秒間隔自動リフレッシュ）
+- セッション選択時のターミナル自動フォーカス（設定可）
 
-### 通知
+### 通知・フォーカス
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
-- アテンション UI（ヘッダー色変化 + サイドバーパルス）
+- アテンション UI（ヘッダー色変化 + サイドバーパルス + ステータス別背景色）
+- 回答待ち/許可待ち時のブラウザ自動フォーカス（PWA/Chrome 対応、設定可）
 
 ### Worktree + sbx
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
@@ -223,6 +227,10 @@ make install
 | `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
+| `status_colors`        | 表示カスタマイズ         | ステータス別の背景色（`{ "color": "R, G, B", "opacity": 0.15 }`） | 内蔵デフォルト |
+| `focus_terminal_on_select` | フォーカス設定       | セッション選択時にターミナルを自動フォーカス | `false` |
+| `focus_browser_on_attention` | フォーカス設定     | 回答待ち/許可待ち時にブラウザを自動で前面に表示 | `false` |
+| `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
 | `screen_lines`         | Terminal Preview      | ターミナルプレビューの表示行数 | `20` |
 | `port`                 | サーバー設定           | サーバーのリッスンポート | `6277` |
 | `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
