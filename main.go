@@ -26,13 +26,25 @@ var frontendFS embed.FS
 
 const defaultPort = 6277
 
-func getAddr() string {
+func getPort() int {
 	cfg := loadConfig()
-	port := cfg.Port
-	if port <= 0 {
-		port = defaultPort
+	if cfg.Port > 0 {
+		return cfg.Port
 	}
-	return fmt.Sprintf("localhost:%d", port)
+	return defaultPort
+}
+
+func getAddr() string {
+	return fmt.Sprintf("localhost:%d", getPort())
+}
+
+func getListenAddr() string {
+	cfg := loadConfig()
+	host := "localhost"
+	if cfg.ListenAddress != "" {
+		host = cfg.ListenAddress
+	}
+	return fmt.Sprintf("%s:%d", host, getPort())
 }
 
 // Session represents a Claude Code session
@@ -1094,8 +1106,9 @@ type Config struct {
 	RepositoryBase    string                     `json:"repository_base"`
 	ScreenLines       int                        `json:"screen_lines"`
 	Port              int                        `json:"port"`
-	BrowserApp        string                     `json:"browser_app"`
-	FocusBrowserOnAttention      bool                       `json:"focus_browser_on_attention"`
+	BrowserApp              string                     `json:"browser_app"`
+	FocusBrowserOnAttention bool                       `json:"focus_browser_on_attention"`
+	ListenAddress           string                     `json:"listen_address"`
 }
 
 func configFilePath() string {
@@ -1749,13 +1762,13 @@ func runServer() {
 		fileServer.ServeHTTP(w, r)
 	})
 
-	ln, err := net.Listen("tcp", getAddr())
+	ln, err := net.Listen("tcp", getListenAddr())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "claude-tabs: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("claude-tabs server running on http://%s\n", getAddr())
+	fmt.Printf("claude-tabs server running on http://%s (listening on %s)\n", getAddr(), getListenAddr())
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)

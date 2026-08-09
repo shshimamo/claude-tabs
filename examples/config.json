@@ -49,6 +49,7 @@
   "browser_app": "",
   "screen_lines": 20,
   "port": 6277,
+  "listen_address": "localhost",
   "terminal": "iterm2",
   "terminal_presets": {
     "iterm2": {

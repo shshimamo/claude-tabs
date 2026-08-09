@@ -233,6 +233,7 @@ make install
 | `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
 | `screen_lines`         | Terminal Preview      | ターミナルプレビューの表示行数 | `20` |
 | `port`                 | サーバー設定           | サーバーのリッスンポート | `6277` |
+| `listen_address`       | サーバー設定           | リッスンアドレス（`0.0.0.0` でLAN公開） | `localhost` |
 | `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
 | `terminal_presets`     | ターミナル連携           | ターミナル操作の AppleScript 定義（カスタムターミナル対応用） | 内蔵(iterm2, terminal) |
 
