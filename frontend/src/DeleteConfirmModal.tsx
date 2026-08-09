@@ -7,13 +7,14 @@ type Props = {
     worktreePath: string
     sbxName: string
   }
-  onConfirm: (removeWorktree: boolean, removeSbx: boolean) => void
+  onConfirm: (removeWorktree: boolean, removeSbx: boolean, sendExit: boolean) => void
   onCancel: () => void
 }
 
 export default function DeleteConfirmModal({ info, onConfirm, onCancel }: Props) {
   const [removeWt, setRemoveWt] = useState(false)
   const [removeSbx, setRemoveSbx] = useState(false)
+  const [sendExit, setSendExit] = useState(false)
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -36,10 +37,14 @@ export default function DeleteConfirmModal({ info, onConfirm, onCancel }: Props)
               <span>Sandbox を削除 <code>{info.sbxName}</code></span>
             </label>
           )}
+          <label className="delete-check-label">
+            <input type="checkbox" checked={sendExit} onChange={e => setSendExit(e.target.checked)} />
+            <span>/exit を送信して Claude Code を終了</span>
+          </label>
         </div>
         <div className="modal-footer">
           <button className="action-btn" onClick={onCancel}>Cancel</button>
-          <button className="action-btn deny-btn" onClick={() => onConfirm(removeWt, removeSbx)}>
+          <button className="action-btn deny-btn" onClick={() => onConfirm(removeWt, removeSbx, sendExit)}>
             削除
           </button>
         </div>
