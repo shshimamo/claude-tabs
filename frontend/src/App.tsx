@@ -66,6 +66,7 @@ export default function App() {
   const prevSessionsRef = useRef<Map<string, string>>(new Map())
   const [statusColors, setStatusColors] = useState<Record<string, { color: string; opacity: number }>>({})
   const [focusTerminalOnSelect, setFocusTerminalOnSelect] = useState(false)
+  const focusBrowserStatusesRef = useRef<string[]>([])
 
   // Request notification permission + load config on mount
   useEffect(() => {
@@ -75,6 +76,9 @@ export default function App() {
     fetch('/api/config').then(r => r.json()).then(cfg => {
       if (cfg.status_colors) setStatusColors(cfg.status_colors)
       if (cfg.focus_terminal_on_select) setFocusTerminalOnSelect(true)
+      if (cfg.focus_browser_on_attention?.enable) {
+        focusBrowserStatusesRef.current = cfg.focus_browser_on_attention.statuses || ['waiting_input', 'permission_required']
+      }
     }).catch(() => {})
   }, [])
 
@@ -105,6 +109,10 @@ export default function App() {
               n.onclick = () => { window.focus(); setSelectedId(sid); n.close() }
             }
             playNotificationSound()
+          }
+          // Auto-select session on focus_browser_on_attention status change
+          if (oldStatus && oldStatus !== s.status && focusBrowserStatusesRef.current.includes(s.status)) {
+            setSelectedId(s.session_id)
           }
         }
         // Update prev state
