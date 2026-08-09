@@ -33,6 +33,17 @@
     }
   ],
   "repository_base": "~/devel/src",
+  "status_colors": {
+    "ai_working":          { "color": "137, 180, 250", "opacity": 0.15 },
+    "waiting_input":       { "color": "242, 205, 205", "opacity": 0.15 },
+    "permission_required": { "color": "250, 179, 135", "opacity": 0.15 },
+    "idle":                { "color": "249, 226, 175", "opacity": 0.0 },
+    "inactive_1h":         { "color": "88, 91, 112",   "opacity": 0.0 },
+    "inactive_3h":         { "color": "80, 79, 106",   "opacity": 0.0 },
+    "inactive_12h":        { "color": "72, 71, 100",   "opacity": 0.0 },
+    "inactive_24h":        { "color": "69, 71, 90",    "opacity": 0.0 },
+    "terminated":          { "color": "69, 71, 90",    "opacity": 0.0 }
+  },
   "screen_lines": 20,
   "port": 6277,
   "terminal": "iterm2",

@@ -64,12 +64,16 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const prevSessionsRef = useRef<Map<string, string>>(new Map())
+  const [statusColors, setStatusColors] = useState<Record<string, { color: string; opacity: number }>>({})
 
-  // Request notification permission on mount
+  // Request notification permission + load config on mount
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
+    fetch('/api/config').then(r => r.json()).then(cfg => {
+      if (cfg.status_colors) setStatusColors(cfg.status_colors)
+    }).catch(() => {})
   }, [])
 
   // WebSocket connection with auto-reconnect
@@ -204,6 +208,12 @@ export default function App() {
   const [sbxRunOpen, setSbxRunOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
 
+  const DEFAULT_STATUS_COLORS: Record<string, { color: string; opacity: number }> = {
+    ai_working: { color: '137, 180, 250', opacity: 0.15 },
+    waiting_input: { color: '242, 205, 205', opacity: 0.15 },
+    permission_required: { color: '250, 179, 135', opacity: 0.15 },
+  }
+
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
@@ -235,7 +245,9 @@ export default function App() {
           width={sidebarWidth}
         />
         <div className="sidebar-resize-handle" onMouseDown={handleMouseDown} />
-        <main className="main">
+        <main className="main" style={selected && (statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status])
+          ? { background: `rgba(${(statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status]).color}, ${(statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status]).opacity})` }
+          : undefined}>
           {selected ? (
             <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} />
           ) : (

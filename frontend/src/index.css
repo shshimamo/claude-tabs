@@ -183,7 +183,7 @@ body {
 .sidebar-resize-handle:hover { background: #45475a; }
 
 /* Main */
-.main { flex: 1; overflow-y: auto; padding: 24px; position: relative; }
+.main { flex: 1; overflow-y: auto; padding: 24px; position: relative; transition: background 0.3s; }
 
 .empty-hint {
   color: #6c7086;
