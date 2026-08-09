@@ -1,7 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import mermaid from 'mermaid'
 import type { Session } from './App'
+
+mermaid.initialize({ startOnLoad: false, theme: 'dark' })
+
+function MermaidBlock({ code, light }: { code: string; light?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    mermaid.initialize({ startOnLoad: false, theme: light ? 'default' : 'dark' })
+    const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    mermaid.render(id, code).then(({ svg }) => {
+      if (ref.current) ref.current.innerHTML = svg
+    }).catch(() => {
+      if (ref.current) ref.current.textContent = code
+    })
+  }, [code, light])
+  return <div ref={ref} />
+}
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
   ai_working:          { label: 'AI作業中',  icon: '⚡', className: 'status-working' },
@@ -338,7 +356,14 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           </div>
           <div className={`detail-question-text detail-output-text${outputLight ? ' output-light' : ''}`}>
             {outputMode === 'md'
-              ? <Markdown remarkPlugins={[remarkGfm]}>{unescapeUnicode(session.last_output)}</Markdown>
+              ? <Markdown remarkPlugins={[remarkGfm]} components={{
+                  code({ className, children }) {
+                    if (className === 'language-mermaid') {
+                      return <MermaidBlock code={String(children).trim()} light={outputLight} />
+                    }
+                    return <code className={className}>{children}</code>
+                  }
+                }}>{unescapeUnicode(session.last_output)}</Markdown>
               : unescapeUnicode(session.last_output)}
           </div>
         </div>
