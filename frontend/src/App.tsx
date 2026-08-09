@@ -65,7 +65,7 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null)
   const prevSessionsRef = useRef<Map<string, string>>(new Map())
   const [statusColors, setStatusColors] = useState<Record<string, { color: string; opacity: number }>>({})
-  const [focusTerminalOnSelect, setAutoFocus] = useState(false)
+  const [focusTerminalOnSelect, setFocusTerminalOnSelect] = useState(false)
 
   // Request notification permission + load config on mount
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function App() {
     }
     fetch('/api/config').then(r => r.json()).then(cfg => {
       if (cfg.status_colors) setStatusColors(cfg.status_colors)
-      if (cfg.focus_terminal_on_select) setAutoFocus(true)
+      if (cfg.focus_terminal_on_select) setFocusTerminalOnSelect(true)
     }).catch(() => {})
   }, [])
 
