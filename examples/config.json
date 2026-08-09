@@ -45,7 +45,10 @@
     "terminated":          { "color": "69, 71, 90",    "opacity": 0.0 }
   },
   "focus_terminal_on_select": false,
-  "focus_browser_on_attention": false,
+  "focus_browser_on_attention": {
+    "enable": false,
+    "statuses": ["waiting_input", "permission_required"]
+  },
   "browser_app": "",
   "screen_lines": 20,
   "port": 6277,

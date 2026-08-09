@@ -229,13 +229,44 @@ make install
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
 | `status_colors`        | 表示カスタマイズ         | ステータス別の背景色（`{ "color": "R, G, B", "opacity": 0.15 }`） | 内蔵デフォルト |
 | `focus_terminal_on_select` | フォーカス設定       | セッション選択時にターミナルを自動フォーカス | `false` |
-| `focus_browser_on_attention` | フォーカス設定     | 回答待ち/許可待ち時にブラウザを自動で前面に表示 | `false` |
+| `focus_browser_on_attention` | フォーカス設定     | ブラウザ自動フォーカス（下記参照） | `{ "enable": false }` |
 | `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
 | `screen_lines`         | Terminal Preview      | ターミナルプレビューの表示行数 | `20` |
 | `port`                 | サーバー設定           | サーバーのリッスンポート | `6277` |
 | `listen_address`       | サーバー設定           | リッスンアドレス（`0.0.0.0` でLAN公開） | `localhost` |
 | `terminal`             | ターミナル連携           | 使用ターミナル（`iterm2` / `terminal` / カスタム名） | `iterm2` |
 | `terminal_presets`     | ターミナル連携           | ターミナル操作の AppleScript 定義（カスタムターミナル対応用） | 内蔵(iterm2, terminal) |
+
+### ステータス一覧
+
+| ステータス | 説明 |
+|-----------|------|
+| `ai_working` | AI 作業中 |
+| `waiting_input` | 回答待ち（AI が質問を出している） |
+| `permission_required` | 許可待ち（ツール実行の承認待ち） |
+| `idle` | 入力待ち（ユーザーのプロンプト待ち） |
+| `inactive_1h` | 1時間以上非アクティブ |
+| `inactive_3h` | 3時間以上非アクティブ |
+| `inactive_12h` | 12時間以上非アクティブ |
+| `inactive_24h` | 24時間以上非アクティブ |
+| `terminated` | 終了済み |
+
+### ブラウザ自動フォーカス
+
+`focus_browser_on_attention` でステータス変化時にブラウザを自動で前面に表示。
+
+```json
+{
+  "focus_browser_on_attention": {
+    "enable": true,
+    "statuses": ["waiting_input", "permission_required"]
+  }
+}
+```
+
+- `enable`: 有効/無効
+- `statuses`: フォーカス対象のステータス（上記ステータス一覧から指定）。省略時は `["waiting_input", "permission_required"]`
+- `browser_app` でPWA名を指定可能。未設定なら Chrome でタブ検索
 
 ### 定型文カスタマイズ
 

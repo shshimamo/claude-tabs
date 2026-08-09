@@ -374,10 +374,19 @@ func (s *server) handleFileChange(filePath string) {
 	s.broadcastSessions()
 
 	// Auto-activate browser on attention status change
-	if oldStatus != session.Status && (session.Status == "waiting_input" || session.Status == "permission_required") {
+	if oldStatus != session.Status {
 		cfg := loadConfig()
-		if cfg.FocusBrowserOnAttention {
-			go activateBrowser(cfg)
+		if fbc := cfg.FocusBrowserOnAttention; fbc != nil && fbc.Enable {
+			statuses := fbc.Statuses
+			if len(statuses) == 0 {
+				statuses = []string{"waiting_input", "permission_required"}
+			}
+			for _, st := range statuses {
+				if session.Status == st {
+					go activateBrowser(cfg)
+					break
+				}
+			}
 		}
 	}
 }
@@ -1093,6 +1102,11 @@ type TerminalScripts struct {
 	Screen   string `json:"screen"`
 }
 
+type FocusBrowserConfig struct {
+	Enable   bool     `json:"enable"`
+	Statuses []string `json:"statuses"`
+}
+
 type Config struct {
 	Presets           []Preset                   `json:"presets"`
 	WorktreeBase      string                     `json:"worktree_base"`
@@ -1107,7 +1121,7 @@ type Config struct {
 	ScreenLines       int                        `json:"screen_lines"`
 	Port              int                        `json:"port"`
 	BrowserApp              string                     `json:"browser_app"`
-	FocusBrowserOnAttention bool                       `json:"focus_browser_on_attention"`
+	FocusBrowserOnAttention *FocusBrowserConfig          `json:"focus_browser_on_attention"`
 	ListenAddress           string                     `json:"listen_address"`
 }
 
