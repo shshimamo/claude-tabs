@@ -55,6 +55,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
   const [editName, setEditName] = useState('')
   const editRef = useRef<HTMLInputElement>(null)
   const [dragSessionId, setDragSessionId] = useState<string | null>(null)
+  const [dragGroupIdx, setDragGroupIdx] = useState<number | null>(null)
 
   useEffect(() => { saveGroups(groups) }, [groups])
   useEffect(() => { if (editingGroup !== null) editRef.current?.focus() }, [editingGroup])
@@ -112,6 +113,16 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
   }
 
   const handleDropOnGroup = (groupIdx: number) => {
+    if (dragGroupIdx !== null && dragGroupIdx !== groupIdx) {
+      setGroups(prev => {
+        const next = [...prev]
+        const [moved] = next.splice(dragGroupIdx, 1)
+        next.splice(groupIdx, 0, moved)
+        return next
+      })
+      setDragGroupIdx(null)
+      return
+    }
     if (!dragSessionId) return
     setGroups(prev => {
       const next = prev.map((g, i) => ({
@@ -191,7 +202,12 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleDropOnGroup(idx)}
             >
-              <div className="sidebar-group-label group-header">
+              <div
+                className="sidebar-group-label group-header"
+                draggable
+                onDragStart={() => setDragGroupIdx(idx)}
+                onDragEnd={() => setDragGroupIdx(null)}
+              >
                 <span className="group-collapse" onClick={() => toggleCollapse(idx)}>
                   {group.collapsed ? '▸' : '▾'}
                 </span>
