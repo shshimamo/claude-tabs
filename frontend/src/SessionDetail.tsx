@@ -77,7 +77,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [outputLight, setOutputLight] = useState(() => {
     return localStorage.getItem('output-light') === '1'
   })
-  const [savedOutputs, setSavedOutputs] = useState<{ text: string; savedAt: string }[]>([])
+  const [savedOutputs, setSavedOutputs] = useState<{ output: string; input?: string; savedAt: string }[]>([])
   const [savedOpen, setSavedOpen] = useState(false)
   const [expandedSaved, setExpandedSaved] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -94,17 +94,24 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   // Load saved outputs from localStorage on session change
   useEffect(() => {
     const raw = localStorage.getItem(`saved-outputs:${session.session_id}`)
-    setSavedOutputs(raw ? JSON.parse(raw) : [])
+    const parsed = raw ? JSON.parse(raw) : []
+    // Migrate old format (text -> output)
+    setSavedOutputs(parsed.map((item: any) => item.output ? item : { output: item.text, savedAt: item.savedAt }))
     setSavedOpen(false)
     setExpandedSaved(new Set())
   }, [session.session_id])
 
-  const saveOutput = (text: string) => {
-    const entry = { text, savedAt: new Date().toLocaleString() }
-    const next = [entry, ...savedOutputs]
-    setSavedOutputs(next)
-    localStorage.setItem(`saved-outputs:${session.session_id}`, JSON.stringify(next))
-  }
+  // Auto-save on last_output change
+  useEffect(() => {
+    if (!session.last_output) return
+    setSavedOutputs(prev => {
+      if (prev.length > 0 && prev[0].output === session.last_output) return prev
+      const entry = { output: session.last_output!, input: session.last_prompt, savedAt: new Date().toLocaleString() }
+      const next = [entry, ...prev]
+      localStorage.setItem(`saved-outputs:${session.session_id}`, JSON.stringify(next))
+      return next
+    })
+  }, [session.last_output, session.session_id])
 
   const deleteSavedOutput = (index: number) => {
     const next = savedOutputs.filter((_, i) => i !== index)
@@ -382,11 +389,6 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
               onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
             >{outputLight ? '🌙' : '☀️'}</button>
-            <button
-              className="action-btn"
-              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
-              onClick={() => saveOutput(session.last_output!)}
-            >Save</button>
           </div>
           <div className={`detail-question-text detail-output-text${outputLight ? ' output-light' : ''}`}>
             {outputMode === 'md'
@@ -414,25 +416,6 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           <div className="detail-question-text detail-output-text">{session.last_prompt}</div>
         </div>
       )}
-
-      <div className="detail-grid">
-        <div className="detail-field">
-          <span className="detail-label">PID</span>
-          <span className="detail-value detail-mono">{session.pid || '-'}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Session ID</span>
-          <span className="detail-value detail-mono">{session.session_id}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Last Event</span>
-          <span className="detail-value">{session.last_event}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Last Updated</span>
-          <span className="detail-value">{formatTime(session.last_updated)}</span>
-        </div>
-      </div>
 
       <div className="history-section">
         <button className="history-toggle" onClick={() => setSavedOpen(v => !v)}>
@@ -462,11 +445,22 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
                     >x</button>
                   </div>
                   {expanded && (
-                    <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
-                      {outputMode === 'md'
-                        ? <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
-                        : item.text}
-                    </div>
+                    <>
+                      {item.input && (
+                        <div style={{ marginBottom: '4px' }}>
+                          <div className="history-role" style={{ color: '#89b4fa' }}>User Input</div>
+                          <div className="history-content">{item.input}</div>
+                        </div>
+                      )}
+                      <div>
+                        <div className="history-role" style={{ color: '#a6e3a1' }}>Output</div>
+                        <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
+                          {outputMode === 'md'
+                            ? <Markdown remarkPlugins={[remarkGfm]}>{item.output}</Markdown>
+                            : item.output}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )
@@ -474,6 +468,27 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           </div>
         )}
       </div>
+
+      <div className="detail-grid">
+        <div className="detail-field">
+          <span className="detail-label">PID</span>
+          <span className="detail-value detail-mono">{session.pid || '-'}</span>
+        </div>
+        <div className="detail-field">
+          <span className="detail-label">Session ID</span>
+          <span className="detail-value detail-mono">{session.session_id}</span>
+        </div>
+        <div className="detail-field">
+          <span className="detail-label">Last Event</span>
+          <span className="detail-value">{session.last_event}</span>
+        </div>
+        <div className="detail-field">
+          <span className="detail-label">Last Updated</span>
+          <span className="detail-value">{formatTime(session.last_updated)}</span>
+        </div>
+      </div>
+
+
 
       <div className="history-section">
         <button className="history-toggle" onClick={() => setHistoryOpen(v => !v)}>
