@@ -373,6 +373,20 @@ func (s *server) handleFileChange(filePath string) {
 	s.mu.Unlock()
 	s.broadcastSessions()
 
+	// Auto-save conversation on last_output change
+	if session.LastOutput != "" && (oldSession == nil || oldSession.LastOutput != session.LastOutput) {
+		entry := ConversationEntry{
+			Output:  session.LastOutput,
+			Input:   session.LastPrompt,
+			SavedAt: time.Now().Format("2006/1/2 15:04:05"),
+		}
+		entries := loadConversations(session.SessionID)
+		if len(entries) == 0 || entries[0].Output != entry.Output {
+			entries = append([]ConversationEntry{entry}, entries...)
+			saveConversations(session.SessionID, entries)
+		}
+	}
+
 	// Auto-activate browser on attention status change
 	if oldStatus != session.Status {
 		cfg := loadConfig()
@@ -1125,6 +1139,79 @@ type Config struct {
 	ListenAddress           string                     `json:"listen_address"`
 }
 
+// Conversations
+
+type ConversationEntry struct {
+	Output  string `json:"output"`
+	Input   string `json:"input,omitempty"`
+	SavedAt string `json:"saved_at"`
+}
+
+func conversationsDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude-tabs", "conversations")
+}
+
+func conversationFilePath(sessionID string) string {
+	return filepath.Join(conversationsDir(), sessionID+".json")
+}
+
+func loadConversations(sessionID string) []ConversationEntry {
+	data, err := os.ReadFile(conversationFilePath(sessionID))
+	if err != nil {
+		return []ConversationEntry{}
+	}
+	var entries []ConversationEntry
+	json.Unmarshal(data, &entries)
+	return entries
+}
+
+func saveConversations(sessionID string, entries []ConversationEntry) error {
+	dir := conversationsDir()
+	os.MkdirAll(dir, 0755)
+	data, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(conversationFilePath(sessionID), data, 0644)
+}
+
+func handleConversations(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "session_id required", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		entries := loadConversations(sessionID)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(entries)
+
+	case http.MethodDelete:
+		indexStr := r.URL.Query().Get("index")
+		if indexStr == "" {
+			http.Error(w, "index required", http.StatusBadRequest)
+			return
+		}
+		index := 0
+		fmt.Sscanf(indexStr, "%d", &index)
+		entries := loadConversations(sessionID)
+		if index < 0 || index >= len(entries) {
+			http.Error(w, "index out of range", http.StatusBadRequest)
+			return
+		}
+		entries = append(entries[:index], entries[index+1:]...)
+		if len(entries) == 0 {
+			os.Remove(conversationFilePath(sessionID))
+		} else {
+			saveConversations(sessionID, entries)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func configFilePath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".claude-tabs", "config.json")
@@ -1755,6 +1842,7 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
 	mux.HandleFunc("/api/presets", handlePresets)
 	mux.HandleFunc("/api/config", handleConfig)
+	mux.HandleFunc("/api/conversations", handleConversations)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)
 
