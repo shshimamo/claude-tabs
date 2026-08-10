@@ -77,6 +77,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [outputLight, setOutputLight] = useState(() => {
     return localStorage.getItem('output-light') === '1'
   })
+  const [savedOutputs, setSavedOutputs] = useState<{ text: string; savedAt: string }[]>([])
+  const [savedOpen, setSavedOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -87,6 +89,30 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     const saved = localStorage.getItem(`memo:${session.session_id}`)
     setMemo(saved || '')
   }, [session.session_id])
+
+  // Load saved outputs from localStorage on session change
+  useEffect(() => {
+    const raw = localStorage.getItem(`saved-outputs:${session.session_id}`)
+    setSavedOutputs(raw ? JSON.parse(raw) : [])
+    setSavedOpen(false)
+  }, [session.session_id])
+
+  const saveOutput = (text: string) => {
+    const entry = { text, savedAt: new Date().toLocaleString() }
+    const next = [entry, ...savedOutputs]
+    setSavedOutputs(next)
+    localStorage.setItem(`saved-outputs:${session.session_id}`, JSON.stringify(next))
+  }
+
+  const deleteSavedOutput = (index: number) => {
+    const next = savedOutputs.filter((_, i) => i !== index)
+    setSavedOutputs(next)
+    if (next.length > 0) {
+      localStorage.setItem(`saved-outputs:${session.session_id}`, JSON.stringify(next))
+    } else {
+      localStorage.removeItem(`saved-outputs:${session.session_id}`)
+    }
+  }
 
   const updateMemo = (text: string) => {
     setMemo(text)
@@ -354,6 +380,11 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
               onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
             >{outputLight ? '🌙' : '☀️'}</button>
+            <button
+              className="action-btn"
+              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+              onClick={() => saveOutput(session.last_output!)}
+            >Save</button>
           </div>
           <div className={`detail-question-text detail-output-text${outputLight ? ' output-light' : ''}`}>
             {outputMode === 'md'
@@ -399,6 +430,37 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
           <span className="detail-label">Last Updated</span>
           <span className="detail-value">{formatTime(session.last_updated)}</span>
         </div>
+      </div>
+
+      <div className="history-section">
+        <button className="history-toggle" onClick={() => setSavedOpen(v => !v)}>
+          {savedOpen ? '▾' : '▸'} Saved Outputs
+          {savedOutputs.length > 0 && <span className="history-count">{savedOutputs.length}</span>}
+        </button>
+        {savedOpen && (
+          <div className="history-list">
+            {savedOutputs.length === 0 && (
+              <div className="history-empty">保存済み出力なし</div>
+            )}
+            {savedOutputs.map((item, i) => (
+              <div key={i} className="history-msg history-assistant">
+                <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{item.savedAt}</span>
+                  <button
+                    className="action-btn deny-btn"
+                    style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0 }}
+                    onClick={() => deleteSavedOutput(i)}
+                  >x</button>
+                </div>
+                <div className={`history-content${outputLight ? ' output-light' : ''}`}>
+                  {outputMode === 'md'
+                    ? <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
+                    : item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="history-section">
