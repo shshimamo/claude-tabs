@@ -232,6 +232,7 @@ make install
 | `focus_browser_on_attention` | フォーカス設定     | ブラウザ自動フォーカス（下記参照） | `{ "enable": false }` |
 | `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
 | `screen_lines`         | Terminal Preview      | ターミナルプレビューの表示行数 | `20` |
+| `preview_interval`     | Terminal Preview      | 自動リフレッシュ間隔（秒） | `10` |
 | `conversation`         | 表示カスタマイズ         | Conversation 表示設定（`{ "height": "70vh", "content_height": "200px" }`） | 内蔵デフォルト |
 | `port`                 | サーバー設定           | サーバーのリッスンポート | `6277` |
 | `listen_address`       | サーバー設定           | リッスンアドレス（`0.0.0.0` でLAN公開） | `localhost` |

@@ -71,6 +71,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [screenContent, setScreenContent] = useState('')
   const [screenLoading, setScreenLoading] = useState(false)
+  const [previewInterval, setPreviewInterval] = useState(10000)
   const [conversationHeight, setConversationHeight] = useState('70vh')
   const [contentHeight, setContentHeight] = useState('200px')
   const [outputMode, setOutputMode] = useState<'text' | 'md'>(() => {
@@ -145,6 +146,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
       setCwdBases(bases)
       if (cfg.conversation?.height) setConversationHeight(cfg.conversation.height)
       if (cfg.conversation?.content_height) setContentHeight(cfg.conversation.content_height)
+      if (cfg.preview_interval) setPreviewInterval(cfg.preview_interval * 1000)
     }).catch(() => {})
   }, [])
 
@@ -221,13 +223,13 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     setScreenLoading(false)
   }
 
-  // Auto-fetch terminal preview + polling every 5s (except idle)
+  // Auto-fetch terminal preview + polling (except idle)
   useEffect(() => {
     if (!session.tty || session.status === 'idle') return
     fetchScreen()
-    const id = setInterval(fetchScreen, 5000)
+    const id = setInterval(fetchScreen, previewInterval)
     return () => clearInterval(id)
-  }, [session.session_id, session.tty, session.status])
+  }, [session.session_id, session.tty, session.status, previewInterval])
 
   const displayCwd = (() => {
     for (const base of cwdBases) {

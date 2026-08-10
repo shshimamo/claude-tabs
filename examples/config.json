@@ -51,6 +51,7 @@
   },
   "browser_app": "",
   "screen_lines": 20,
+  "preview_interval": 10,
   "conversation": {
     "height": "70vh",
     "content_height": "200px"
