@@ -79,6 +79,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   })
   const [savedOutputs, setSavedOutputs] = useState<{ text: string; savedAt: string }[]>([])
   const [savedOpen, setSavedOpen] = useState(false)
+  const [expandedSaved, setExpandedSaved] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
@@ -95,6 +96,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     const raw = localStorage.getItem(`saved-outputs:${session.session_id}`)
     setSavedOutputs(raw ? JSON.parse(raw) : [])
     setSavedOpen(false)
+    setExpandedSaved(new Set())
   }, [session.session_id])
 
   const saveOutput = (text: string) => {
@@ -442,23 +444,33 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             {savedOutputs.length === 0 && (
               <div className="history-empty">保存済み出力なし</div>
             )}
-            {savedOutputs.map((item, i) => (
-              <div key={i} className="history-msg history-assistant">
-                <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{item.savedAt}</span>
-                  <button
-                    className="action-btn deny-btn"
-                    style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0 }}
-                    onClick={() => deleteSavedOutput(i)}
-                  >x</button>
+            {savedOutputs.map((item, i) => {
+              const expanded = expandedSaved.has(i)
+              return (
+                <div key={i} className="history-msg history-assistant">
+                  <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                    onClick={() => setExpandedSaved(prev => {
+                      const next = new Set(prev)
+                      next.has(i) ? next.delete(i) : next.add(i)
+                      return next
+                    })}>
+                    <span>{expanded ? '▾' : '▸'} {item.savedAt}</span>
+                    <button
+                      className="action-btn deny-btn"
+                      style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0 }}
+                      onClick={(e) => { e.stopPropagation(); deleteSavedOutput(i) }}
+                    >x</button>
+                  </div>
+                  {expanded && (
+                    <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
+                      {outputMode === 'md'
+                        ? <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
+                        : item.text}
+                    </div>
+                  )}
                 </div>
-                <div className={`history-content resizable${outputLight ? ' output-light' : ''}`}>
-                  {outputMode === 'md'
-                    ? <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
-                    : item.text}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
