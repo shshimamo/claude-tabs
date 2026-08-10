@@ -101,7 +101,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     // Migrate old format (text -> output)
     setSavedOutputs(parsed.map((item: any) => item.output ? item : { output: item.text, savedAt: item.savedAt }))
     setSavedOpen(false)
-    setExpandedSaved(new Set())
+    setExpandedSaved(new Set([0]))
   }, [session.session_id])
 
   // Auto-save on last_output change
@@ -414,16 +414,16 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         <div className="history-list" style={{ maxHeight: conversationHeight }}>
           {savedOutputs.map((item, i) => {
             if (i > 0 && !savedOpen) return null
-            const expanded = i === 0 || expandedSaved.has(i)
+            const expanded = expandedSaved.has(i)
             return (
               <div key={i} className="history-msg history-assistant">
-                <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: i === 0 ? undefined : 'pointer' }}
-                  onClick={() => { if (i === 0) return; setExpandedSaved(prev => {
+                <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  onClick={() => setExpandedSaved(prev => {
                     const next = new Set(prev)
                     next.has(i) ? next.delete(i) : next.add(i)
                     return next
-                  })}}>
-                  <span>{i === 0 ? 'Latest' : `${expanded ? '▾' : '▸'} ${item.savedAt}`}</span>
+                  })}>
+                  <span>{expanded ? '▾' : '▸'} {i === 0 ? 'Latest' : item.savedAt}</span>
                   {i > 0 && (
                     <button
                       className="action-btn deny-btn"
