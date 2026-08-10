@@ -452,7 +452,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
                     onClick={() => deleteSavedOutput(i)}
                   >x</button>
                 </div>
-                <div className={`history-content${outputLight ? ' output-light' : ''}`}>
+                <div className={`history-content resizable${outputLight ? ' output-light' : ''}`}>
                   {outputMode === 'md'
                     ? <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
                     : item.text}
