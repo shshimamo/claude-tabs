@@ -19,6 +19,7 @@ export type Session = {
   tty?: string
   last_output?: string
   last_prompt?: string
+  memo?: string
 }
 
 const NOTIFY_STATUSES: Record<string, string> = {

@@ -89,10 +89,9 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
   useEffect(() => { setKeysSent(false); setSyncWaiting(false) }, [session.status, session.last_output])
 
-  // Load memo from localStorage on session change
+  // Sync memo from session
   useEffect(() => {
-    const saved = localStorage.getItem(`memo:${session.session_id}`)
-    setMemo(saved || '')
+    setMemo(session.memo || '')
   }, [session.session_id])
 
   const fetchConversations = () => {
@@ -125,11 +124,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
   const updateMemo = (text: string) => {
     setMemo(text)
-    if (text) {
-      localStorage.setItem(`memo:${session.session_id}`, text)
-    } else {
-      localStorage.removeItem(`memo:${session.session_id}`)
-    }
+    fetch(`/api/sessions/memo?id=${encodeURIComponent(session.session_id)}&memo=${encodeURIComponent(text)}`, { method: 'POST' })
   }
 
   useEffect(() => {

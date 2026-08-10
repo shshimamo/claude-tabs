@@ -61,6 +61,7 @@ type Session struct {
 	TTY         string    `json:"tty,omitempty"`
 	LastOutput  string    `json:"last_output,omitempty"`
 	LastPrompt  string    `json:"last_prompt,omitempty"`
+	Memo        string    `json:"memo,omitempty"`
 }
 
 // HistoryMessage is a simplified conversation message
@@ -553,6 +554,35 @@ func (s *server) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.sessions[id]
 	if ok {
 		session.CustomName = name
+		data, _ := json.MarshalIndent(session, "", "  ")
+		os.WriteFile(filepath.Join(sessionsDir(), id+".json"), data, 0644)
+	}
+	s.mu.Unlock()
+
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+	s.broadcastSessions()
+}
+
+func (s *server) handleMemo(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	memo := r.URL.Query().Get("memo")
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	session, ok := s.sessions[id]
+	if ok {
+		session.Memo = memo
 		data, _ := json.MarshalIndent(session, "", "  ")
 		os.WriteFile(filepath.Join(sessionsDir(), id+".json"), data, 0644)
 	}
@@ -1135,8 +1165,9 @@ type Config struct {
 	ScreenLines       int                        `json:"screen_lines"`
 	Port              int                        `json:"port"`
 	BrowserApp              string                     `json:"browser_app"`
-	FocusBrowserOnAttention *FocusBrowserConfig          `json:"focus_browser_on_attention"`
-	ListenAddress           string                     `json:"listen_address"`
+	FocusBrowserOnAttention  *FocusBrowserConfig          `json:"focus_browser_on_attention"`
+	ListenAddress            string                     `json:"listen_address"`
+	ConversationMaxEntries   int                        `json:"conversation_max_entries"`
 }
 
 // Conversations
@@ -1166,7 +1197,19 @@ func loadConversations(sessionID string) []ConversationEntry {
 	return entries
 }
 
+func conversationMaxEntries() int {
+	cfg := loadConfig()
+	if cfg.ConversationMaxEntries > 0 {
+		return cfg.ConversationMaxEntries
+	}
+	return 100
+}
+
 func saveConversations(sessionID string, entries []ConversationEntry) error {
+	max := conversationMaxEntries()
+	if len(entries) > max {
+		entries = entries[:max]
+	}
 	dir := conversationsDir()
 	os.MkdirAll(dir, 0755)
 	data, err := json.MarshalIndent(entries, "", "  ")
@@ -1841,6 +1884,7 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
 	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
 	mux.HandleFunc("/api/presets", handlePresets)
+	mux.HandleFunc("/api/sessions/memo", srv.handleMemo)
 	mux.HandleFunc("/api/config", handleConfig)
 	mux.HandleFunc("/api/conversations", handleConversations)
 
