@@ -235,6 +235,20 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   })()
   const displayName = session.custom_name || session.project_name
 
+  const mdComponents = {
+    code({ className, children }: { className?: string; children?: React.ReactNode }) {
+      const code = String(children).trim()
+      if (className === 'language-mermaid') {
+        return <MermaidBlock code={code} light={outputLight} />
+      }
+      const lang = className?.replace('language-', '')
+      if (lang) {
+        return <ShikiHighlighter language={lang} theme={outputLight ? 'github-light' : 'github-dark'}>{code}</ShikiHighlighter>
+      }
+      return <code className={className}>{children}</code>
+    }
+  }
+
   return (
     <div className="detail">
       <div className="detail-header">
@@ -375,98 +389,66 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         </div>
       )}
 
-      {session.last_output && (
-        <div className="detail-question">
-          <div className="detail-question-label" style={{ color: session.status === 'permission_required' ? '#fab387' : '#a6e3a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{session.status === 'permission_required' ? 'Permission Request' : 'Last Output'}</span>
-            <button
-              className="action-btn"
-              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
-              onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
-            >{outputMode === 'text' ? 'MD' : 'Text'}</button>
-            <button
-              className="action-btn"
-              style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
-              onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
-            >{outputLight ? '🌙' : '☀️'}</button>
-          </div>
-          <div className={`detail-question-text detail-output-text${outputLight ? ' output-light' : ''}`}>
-            {outputMode === 'md'
-              ? <Markdown remarkPlugins={[remarkGfm]} components={{
-                  code({ className, children }) {
-                    const code = String(children).trim()
-                    if (className === 'language-mermaid') {
-                      return <MermaidBlock code={code} light={outputLight} />
-                    }
-                    const lang = className?.replace('language-', '')
-                    if (lang) {
-                      return <ShikiHighlighter language={lang} theme={outputLight ? 'github-light' : 'github-dark'}>{code}</ShikiHighlighter>
-                    }
-                    return <code className={className}>{children}</code>
-                  }
-                }}>{unescapeUnicode(session.last_output)}</Markdown>
-              : unescapeUnicode(session.last_output)}
-          </div>
-        </div>
-      )}
-
-      {session.last_prompt && (
-        <div className="detail-question">
-          <div className="detail-question-label" style={{ color: '#89b4fa' }}>User Input</div>
-          <div className="detail-question-text detail-output-text">{session.last_prompt}</div>
-        </div>
-      )}
-
       <div className="history-section">
-        <button className="history-toggle" onClick={() => setSavedOpen(v => !v)}>
-          {savedOpen ? '▾' : '▸'} Saved Outputs
-          {savedOutputs.length > 0 && <span className="history-count">{savedOutputs.length}</span>}
-        </button>
-        {savedOpen && (
-          <div className="history-list">
-            {savedOutputs.length === 0 && (
-              <div className="history-empty">保存済み出力なし</div>
-            )}
-            {savedOutputs.map((item, i) => {
-              const expanded = expandedSaved.has(i)
-              return (
-                <div key={i} className="history-msg history-assistant">
-                  <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                    onClick={() => setExpandedSaved(prev => {
-                      const next = new Set(prev)
-                      next.has(i) ? next.delete(i) : next.add(i)
-                      return next
-                    })}>
-                    <span>{expanded ? '▾' : '▸'} {item.savedAt}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="history-toggle" style={{ flex: 1 }} onClick={() => setSavedOpen(v => !v)}>
+            {savedOpen ? '▾' : '▸'} Conversation
+            {savedOutputs.length > 1 && <span className="history-count">{savedOutputs.length - 1}</span>}
+          </button>
+          <button
+            className="action-btn"
+            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+            onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
+          >{outputMode === 'text' ? 'MD' : 'Text'}</button>
+          <button
+            className="action-btn"
+            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+            onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
+          >{outputLight ? '🌙' : '☀️'}</button>
+        </div>
+        <div className="history-list">
+          {savedOutputs.map((item, i) => {
+            if (i > 0 && !savedOpen) return null
+            const expanded = i === 0 || expandedSaved.has(i)
+            return (
+              <div key={i} className="history-msg history-assistant">
+                <div className="history-role" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: i === 0 ? undefined : 'pointer' }}
+                  onClick={() => { if (i === 0) return; setExpandedSaved(prev => {
+                    const next = new Set(prev)
+                    next.has(i) ? next.delete(i) : next.add(i)
+                    return next
+                  })}}>
+                  <span>{i === 0 ? 'Latest' : `${expanded ? '▾' : '▸'} ${item.savedAt}`}</span>
+                  {i > 0 && (
                     <button
                       className="action-btn deny-btn"
                       style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0 }}
                       onClick={(e) => { e.stopPropagation(); deleteSavedOutput(i) }}
                     >x</button>
-                  </div>
-                  {expanded && (
-                    <>
-                      {item.input && (
-                        <div style={{ marginBottom: '4px' }}>
-                          <div className="history-role" style={{ color: '#89b4fa' }}>User Input</div>
-                          <div className="history-content">{item.input}</div>
-                        </div>
-                      )}
-                      <div>
-                        <div className="history-role" style={{ color: '#a6e3a1' }}>Output</div>
-                        <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
-                          {outputMode === 'md'
-                            ? <Markdown remarkPlugins={[remarkGfm]}>{item.output}</Markdown>
-                            : item.output}
-                        </div>
-                      </div>
-                    </>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        )}
+                {expanded && (
+                  <>
+                    {item.input && (
+                      <div style={{ marginBottom: '4px' }}>
+                        <div className="history-role" style={{ color: '#89b4fa' }}>User Input</div>
+                        <div className="history-content">{item.input}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="history-role" style={{ color: '#a6e3a1' }}>Output</div>
+                      <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
+                        {outputMode === 'md'
+                          ? <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{item.output}</Markdown>
+                          : item.output}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="detail-grid">
