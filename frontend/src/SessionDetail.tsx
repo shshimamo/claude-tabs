@@ -71,6 +71,8 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [screenContent, setScreenContent] = useState('')
   const [screenLoading, setScreenLoading] = useState(false)
+  const [conversationHeight, setConversationHeight] = useState('70vh')
+  const [contentHeight, setContentHeight] = useState('200px')
   const [outputMode, setOutputMode] = useState<'text' | 'md'>(() => {
     return (localStorage.getItem('output-mode') as 'text' | 'md') || 'text'
   })
@@ -79,6 +81,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   })
   const [savedOutputs, setSavedOutputs] = useState<{ output: string; input?: string; savedAt: string }[]>([])
   const [savedOpen, setSavedOpen] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
   const [expandedSaved, setExpandedSaved] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
@@ -134,12 +137,14 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
   useEffect(() => {
     fetch('/api/presets').then(r => r.json()).then(setPresets).catch(() => {})
-    fetch('/api/config').then(r => r.json()).then((cfg: Record<string, string>) => {
+    fetch('/api/config').then(r => r.json()).then((cfg: any) => {
       const bases: string[] = []
       for (const key of ['repository_base', 'worktree_base']) {
         if (cfg[key]) bases.push(cfg[key])
       }
       setCwdBases(bases)
+      if (cfg.conversation?.height) setConversationHeight(cfg.conversation.height)
+      if (cfg.conversation?.content_height) setContentHeight(cfg.conversation.content_height)
     }).catch(() => {})
   }, [])
 
@@ -406,7 +411,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
           >{outputLight ? '🌙' : '☀️'}</button>
         </div>
-        <div className="history-list">
+        <div className="history-list" style={{ maxHeight: conversationHeight }}>
           {savedOutputs.map((item, i) => {
             if (i > 0 && !savedOpen) return null
             const expanded = i === 0 || expandedSaved.has(i)
@@ -451,23 +456,30 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         </div>
       </div>
 
-      <div className="detail-grid">
-        <div className="detail-field">
-          <span className="detail-label">PID</span>
-          <span className="detail-value detail-mono">{session.pid || '-'}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Session ID</span>
-          <span className="detail-value detail-mono">{session.session_id}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Last Event</span>
-          <span className="detail-value">{session.last_event}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Last Updated</span>
-          <span className="detail-value">{formatTime(session.last_updated)}</span>
-        </div>
+      <div className="history-section">
+        <button className="history-toggle" onClick={() => setInfoOpen(v => !v)}>
+          {infoOpen ? '▾' : '▸'} Info
+        </button>
+        {infoOpen && (
+          <div className="detail-grid">
+            <div className="detail-field">
+              <span className="detail-label">PID</span>
+              <span className="detail-value detail-mono">{session.pid || '-'}</span>
+            </div>
+            <div className="detail-field">
+              <span className="detail-label">Session ID</span>
+              <span className="detail-value detail-mono">{session.session_id}</span>
+            </div>
+            <div className="detail-field">
+              <span className="detail-label">Last Event</span>
+              <span className="detail-value">{session.last_event}</span>
+            </div>
+            <div className="detail-field">
+              <span className="detail-label">Last Updated</span>
+              <span className="detail-value">{formatTime(session.last_updated)}</span>
+            </div>
+          </div>
+        )}
       </div>
 
 
@@ -485,7 +497,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             {history.map((msg, i) => (
               <div key={i} className={`history-msg history-${msg.role}`}>
                 <div className="history-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
-                <div className="history-content">{msg.content}</div>
+                <div className="history-content" style={{ maxHeight: contentHeight }}>{msg.content}</div>
               </div>
             ))}
           </div>

@@ -51,6 +51,10 @@
   },
   "browser_app": "",
   "screen_lines": 20,
+  "conversation": {
+    "height": "70vh",
+    "content_height": "200px"
+  },
   "port": 6277,
   "listen_address": "localhost",
   "terminal": "iterm2",
