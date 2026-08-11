@@ -157,6 +157,12 @@ make install
         "matcher": "",
         "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs hook PermissionRequest --claude-pid $PPID" }]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs hook PostToolUse --claude-pid $PPID" }]
+      }
     ]
   }
 }
@@ -197,6 +203,12 @@ make install
       {
         "matcher": "",
         "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook PermissionRequest --claude-pid $PPID" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook PostToolUse --claude-pid $PPID" }]
       }
     ]
   }

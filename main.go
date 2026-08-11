@@ -221,6 +221,9 @@ func handleHook(args []string) {
 			}
 		}
 		session.LastOutput = toolInfo
+	case "PostToolUse":
+		session.Status = "ai_working"
+		session.Question = ""
 	case "Stop":
 		session.Status = "idle"
 		session.Question = ""
