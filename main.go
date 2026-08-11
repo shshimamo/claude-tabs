@@ -224,6 +224,9 @@ func handleHook(args []string) {
 	case "PostToolUse":
 		session.Status = "ai_working"
 		session.Question = ""
+	case "SessionEnd":
+		session.Status = "terminated"
+		session.Question = ""
 	case "Stop":
 		session.Status = "idle"
 		session.Question = ""

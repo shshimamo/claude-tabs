@@ -66,6 +66,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude-tabs/bin/claude-tabs hook SessionEnd --claude-pid $PPID"
+          }
+        ]
+      }
     ]
   }
 }
