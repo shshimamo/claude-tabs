@@ -407,6 +407,15 @@ body {
   border-radius: 6px;
   padding: 8px 12px;
 }
+.output-light p,
+.output-light li,
+.output-light pre,
+.output-light blockquote,
+.output-light h1, .output-light h2, .output-light h3,
+.output-light h4, .output-light h5, .output-light h6,
+.output-light strong, .output-light em {
+  color: #4c4f69;
+}
 .output-light th {
   background: rgba(30, 102, 245, 0.1);
 }
