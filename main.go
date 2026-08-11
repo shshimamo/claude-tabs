@@ -1508,43 +1508,22 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 		home, _ := os.UserHomeDir()
 		wtBase = filepath.Join(home, "worktrees")
 	}
-	wtPath := filepath.Join(wtBase, repo, branch)
 
-	// worktree作成
+	// Determine prefix and create worktree
 	isRemote := false
-	if _, err := os.Stat(wtPath); err == nil {
-		fmt.Println("Worktree already exists:", wtPath)
-	} else {
-		if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
-			return "", "", "", fmt.Errorf("git fetch failed: %s", out)
-		}
-		if baseBranch != "" {
-			if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", baseBranch).Run() != nil &&
-				exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "origin/"+baseBranch).Run() != nil {
-				return "", "", "", fmt.Errorf("base branch not found: %s", baseBranch)
-			}
-		}
-		if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
-			isRemote = true
-			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
-				return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
-			}
-		} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
-			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
-				return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
-			}
-		} else {
-			args := []string{"-C", repoPath, "worktree", "add", wtPath, "-b", branch}
-			if baseBranch != "" {
-				args = append(args, baseBranch)
-			}
-			if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-				return "", "", "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
-			}
+	if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
+		return "", "", "", fmt.Errorf("git fetch failed: %s", out)
+	}
+	if baseBranch != "" {
+		if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", baseBranch).Run() != nil &&
+			exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "origin/"+baseBranch).Run() != nil {
+			return "", "", "", fmt.Errorf("base branch not found: %s", baseBranch)
 		}
 	}
+	if exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run() == nil {
+		isRemote = true
+	}
 
-	// Determine sbx name prefix
 	prefix := "wt-"
 	if isPR {
 		prefix = "pr-"
@@ -1552,6 +1531,27 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 		prefix = "remote-"
 	}
 	sbxName = prefix + repo + "-" + branch
+	wtPath := filepath.Join(wtBase, repo, prefix+branch)
+
+	if _, err := os.Stat(wtPath); err == nil {
+		fmt.Println("Worktree already exists:", wtPath)
+	} else if isRemote {
+		if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
+			return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
+		}
+	} else if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run() == nil {
+		if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
+			return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
+		}
+	} else {
+		args := []string{"-C", repoPath, "worktree", "add", wtPath, "-b", branch}
+		if baseBranch != "" {
+			args = append(args, baseBranch)
+		}
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			return "", "", "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
+		}
+	}
 
 	// sbx create
 	claudeTabsDir := expandHome("~/.claude-tabs")
@@ -1741,11 +1741,13 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 }
 
 // createWorktreeOnly creates a worktree without creating a new sbx.
-func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err error) {
-	branch, _, err = resolveBranch(branch)
+func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch string, isRemote bool, err error) {
+	var isPR bool
+	branch, isPR, err = resolveBranch(branch)
 	if err != nil {
-		return "", err
+		return
 	}
+	resolvedBranch = branch
 
 	cfg := loadConfig()
 
@@ -1772,7 +1774,8 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err err
 		})
 	}
 	if repoPath == "" {
-		return "", fmt.Errorf("repository not found: %s", repo)
+		err = fmt.Errorf("repository not found: %s", repo)
+		return
 	}
 
 	wtBase := cfg.WorktreeBase
@@ -1780,28 +1783,43 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err err
 		home, _ := os.UserHomeDir()
 		wtBase = filepath.Join(home, "worktrees")
 	}
-	wtPath = filepath.Join(wtBase, repo, branch)
-
-	if _, statErr := os.Stat(wtPath); statErr == nil {
-		return wtPath, nil // already exists
-	}
 
 	if out, fetchErr := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); fetchErr != nil {
-		return "", fmt.Errorf("git fetch failed: %s", out)
+		err = fmt.Errorf("git fetch failed: %s", out)
+		return
 	}
 	if baseBranch != "" {
 		if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", baseBranch).Run() != nil &&
 			exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "origin/"+baseBranch).Run() != nil {
-			return "", fmt.Errorf("base branch not found: %s", baseBranch)
+			err = fmt.Errorf("base branch not found: %s", baseBranch)
+			return
 		}
 	}
-	if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
+	if exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run() == nil {
+		isRemote = true
+	}
+
+	dirPrefix := ""
+	if isPR {
+		dirPrefix = "pr-"
+	} else if isRemote {
+		dirPrefix = "remote-"
+	}
+	wtPath = filepath.Join(wtBase, repo, dirPrefix+branch)
+
+	if _, statErr := os.Stat(wtPath); statErr == nil {
+		return // already exists
+	}
+
+	if isRemote {
 		if out, addErr := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); addErr != nil {
-			return "", fmt.Errorf("git worktree add failed: %s", out)
+			err = fmt.Errorf("git worktree add failed: %s", out)
+			return
 		}
-	} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
+	} else if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run() == nil {
 		if out, addErr := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); addErr != nil {
-			return "", fmt.Errorf("git worktree add failed: %s", out)
+			err = fmt.Errorf("git worktree add failed: %s", out)
+			return
 		}
 	} else {
 		args := []string{"-C", repoPath, "worktree", "add", wtPath, "-b", branch}
@@ -1809,10 +1827,11 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err err
 			args = append(args, baseBranch)
 		}
 		if out, addErr := exec.Command("git", args...).CombinedOutput(); addErr != nil {
-			return "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
+			err = fmt.Errorf("git worktree add (new branch) failed: %s", out)
+			return
 		}
 	}
-	return wtPath, nil
+	return
 }
 
 func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request) {
@@ -1829,13 +1848,25 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wtPath, err := createWorktreeOnly(repo, branch, baseBranch)
+	// Detect PR/remote for display name prefix
+	isPR := strings.HasPrefix(branch, "https://github.com/") && strings.Contains(branch, "/pull/")
+
+	wtPath, resolvedBranch, isRemote, err := createWorktreeOnly(repo, branch, baseBranch)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		return
 	}
+
+	// Determine display name prefix
+	prefix := "wt-"
+	if isPR {
+		prefix = "pr-"
+	} else if isRemote {
+		prefix = "remote-"
+	}
+	displayName := prefix + repo + "/" + resolvedBranch
 
 	cfg := loadConfig()
 	ts := getTerminalScripts(cfg)
@@ -1848,7 +1879,7 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 	if tty != "" {
 		s.mu.Lock()
 		s.pendingTTY[wtPath] = tty
-		s.pendingName[wtPath] = sbxName + ":" + repo + "/" + branch
+		s.pendingName[wtPath] = displayName
 		s.mu.Unlock()
 	}
 	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started in " + sbxName})
