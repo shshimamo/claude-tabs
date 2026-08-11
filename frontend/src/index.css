@@ -497,12 +497,6 @@ body {
 .action-btn:hover { background: #45475a; }
 .action-btn:disabled { opacity: 0.5; cursor: default; }
 
-.allow-btn { border-color: #a6e3a1; color: #a6e3a1; }
-.allow-btn:hover { background: rgba(166,227,161,0.15); }
-.allow-always-btn { border-color: #89b4fa; color: #89b4fa; }
-.allow-always-btn:hover { background: rgba(137,180,250,0.15); }
-.deny-btn { border-color: #f38ba8; color: #f38ba8; }
-.deny-btn:hover { background: rgba(243,139,168,0.15); }
 
 
 .keys-sent-msg {

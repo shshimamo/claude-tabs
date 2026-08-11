@@ -807,25 +807,17 @@ func (s *server) handleSendKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.URL.Query().Get("id")
-	action := r.URL.Query().Get("action") // "allow", "allow_always", "deny"
+	action := r.URL.Query().Get("action") // "1", "2", "3", "4"
 	if id == "" || action == "" {
 		http.Error(w, "id and action required", http.StatusBadRequest)
 		return
 	}
 
-	// Build AppleScript commands: down arrows (newline NO) then Enter
-	downArrow := `(ASCII character 27) & "[B"`
+	// Send number key + Enter to select option
 	var cmds string
 	switch action {
-	case "allow":
-		// Option 1: already selected, just Enter
-		cmds = `tell s to write text ""`
-	case "allow_always":
-		// Option 2: down once + Enter
-		cmds = fmt.Sprintf("tell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text \"\"", downArrow)
-	case "deny":
-		// Option 3: down twice + Enter
-		cmds = fmt.Sprintf("tell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text %s newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text \"\"", downArrow, downArrow)
+	case "1", "2", "3", "4":
+		cmds = fmt.Sprintf("tell s to write text \"%s\" newline NO\n\t\t\t\t\tdelay 0.1\n\t\t\t\t\ttell s to write text \"\"", action)
 	default:
 		http.Error(w, "invalid action", http.StatusBadRequest)
 		return

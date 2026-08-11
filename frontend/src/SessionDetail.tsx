@@ -181,7 +181,6 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
     try {
       await fetch(`/api/sessions/keys?id=${session.session_id}&action=${action}`, { method: 'POST' })
       setKeysSent(true)
-      setSyncWaiting(true)
     } catch { /* ignore */ }
     setSending(false)
   }
@@ -304,14 +303,15 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
       {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
-          <div className="detail-input-label">許可選択</div>
+          <div className="detail-input-label">選択肢を送信</div>
           {keysSent ? (
             <div className="keys-sent-msg">送信済み ✓</div>
           ) : (
             <div className="detail-input-row">
-              <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
-              <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
-              <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
+              <button className="action-btn" onClick={() => handleSendKeys('1')} disabled={sending}>1</button>
+              <button className="action-btn" onClick={() => handleSendKeys('2')} disabled={sending}>2</button>
+              <button className="action-btn" onClick={() => handleSendKeys('3')} disabled={sending}>3</button>
+              <button className="action-btn" onClick={() => handleSendKeys('4')} disabled={sending}>4</button>
             </div>
           )}
         </div>
