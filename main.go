@@ -115,7 +115,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: claude-tabs worktree create <repo> <branch>")
 			os.Exit(1)
 		}
-		if _, _, err := worktreeCreate(repo, branch, ""); err != nil {
+		if _, _, _, err := worktreeCreate(repo, branch, ""); err != nil {
 			fmt.Fprintf(os.Stderr, "claude-tabs: %v\n", err)
 			os.Exit(1)
 		}
@@ -1466,21 +1466,22 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
 // resolveBranch resolves a PR URL to a branch name using gh CLI.
 // If the input is not a PR URL, it returns the input as-is.
-func resolveBranch(input string) (branch string, err error) {
+func resolveBranch(input string) (branch string, isPR bool, err error) {
 	if strings.HasPrefix(input, "https://github.com/") && strings.Contains(input, "/pull/") {
 		out, err := exec.Command("gh", "pr", "view", input, "--json", "headRefName", "-q", ".headRefName").Output()
 		if err != nil {
-			return "", fmt.Errorf("failed to resolve PR: %s", input)
+			return "", false, fmt.Errorf("failed to resolve PR: %s", input)
 		}
-		return strings.TrimSpace(string(out)), nil
+		return strings.TrimSpace(string(out)), true, nil
 	}
-	return input, nil
+	return input, false, nil
 }
 
-func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err error) {
-	branch, err = resolveBranch(branch)
+func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName string, err error) {
+	var isPR bool
+	branch, isPR, err = resolveBranch(branch)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	cfg := loadConfig()
@@ -1488,7 +1489,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err e
 	// ghqからリポジトリ検索
 	ghqOut, err := exec.Command("ghq", "list", "-p").Output()
 	if err != nil {
-		return "", "", fmt.Errorf("ghq list failed: %w", err)
+		return "", "", "", fmt.Errorf("ghq list failed: %w", err)
 	}
 	var repoPath string
 	for _, line := range strings.Split(strings.TrimSpace(string(ghqOut)), "\n") {
@@ -1498,7 +1499,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err e
 		}
 	}
 	if repoPath == "" {
-		return "", "", fmt.Errorf("repository not found: %s", repo)
+		return "", "", "", fmt.Errorf("repository not found: %s", repo)
 	}
 
 	// worktree base
@@ -1508,28 +1509,29 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err e
 		wtBase = filepath.Join(home, "worktrees")
 	}
 	wtPath := filepath.Join(wtBase, repo, branch)
-	sbxName := "wt-" + repo + "-" + branch
 
 	// worktree作成
+	isRemote := false
 	if _, err := os.Stat(wtPath); err == nil {
 		fmt.Println("Worktree already exists:", wtPath)
 	} else {
 		if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
-			return "", "", fmt.Errorf("git fetch failed: %s", out)
+			return "", "", "", fmt.Errorf("git fetch failed: %s", out)
 		}
 		if baseBranch != "" {
 			if exec.Command("git", "-C", repoPath, "rev-parse", "--verify", baseBranch).Run() != nil &&
 				exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "origin/"+baseBranch).Run() != nil {
-				return "", "", fmt.Errorf("base branch not found: %s", baseBranch)
+				return "", "", "", fmt.Errorf("base branch not found: %s", baseBranch)
 			}
 		}
 		if err := exec.Command("git", "-C", repoPath, "rev-parse", "origin/"+branch).Run(); err == nil {
+			isRemote = true
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, "origin/"+branch).CombinedOutput(); err != nil {
-				return "", "", fmt.Errorf("git worktree add failed: %s", out)
+				return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else if err := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch).Run(); err == nil {
 			if out, err := exec.Command("git", "-C", repoPath, "worktree", "add", wtPath, branch).CombinedOutput(); err != nil {
-				return "", "", fmt.Errorf("git worktree add failed: %s", out)
+				return "", "", "", fmt.Errorf("git worktree add failed: %s", out)
 			}
 		} else {
 			args := []string{"-C", repoPath, "worktree", "add", wtPath, "-b", branch}
@@ -1537,10 +1539,19 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err e
 				args = append(args, baseBranch)
 			}
 			if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-				return "", "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
+				return "", "", "", fmt.Errorf("git worktree add (new branch) failed: %s", out)
 			}
 		}
 	}
+
+	// Determine sbx name prefix
+	prefix := "wt-"
+	if isPR {
+		prefix = "pr-"
+	} else if isRemote {
+		prefix = "remote-"
+	}
+	sbxName = prefix + repo + "-" + branch
 
 	// sbx create
 	claudeTabsDir := expandHome("~/.claude-tabs")
@@ -1553,7 +1564,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath string, err e
 	sbxArgs = append(sbxArgs, "claude")
 	sbxArgs = append(sbxArgs, paths...)
 	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
-		return "", "", fmt.Errorf("sbx create failed: %s", out)
+		return "", "", "", fmt.Errorf("sbx create failed: %s", out)
 	}
 
 	// ~/.claude-tabs symlink (マウントパスがホスト側パスになるため)
@@ -1619,13 +1630,12 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	baseBranch := r.URL.Query().Get("base")
-	tty, cwdPath, err := worktreeCreate(repo, branch, baseBranch)
+	tty, cwdPath, sbxName, err := worktreeCreate(repo, branch, baseBranch)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		return
 	}
-	sbxName := "wt-" + repo + "-" + branch
 	if cwdPath != "" {
 		s.mu.Lock()
 		if tty != "" {
@@ -1732,7 +1742,7 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 
 // createWorktreeOnly creates a worktree without creating a new sbx.
 func createWorktreeOnly(repo, branch, baseBranch string) (wtPath string, err error) {
-	branch, err = resolveBranch(branch)
+	branch, _, err = resolveBranch(branch)
 	if err != nil {
 		return "", err
 	}
