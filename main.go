@@ -1466,20 +1466,25 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 // worktreeCreate is the shared worktree creation logic used by both CLI and Web UI.
 // resolveBranch resolves a PR URL to a branch name using gh CLI.
 // If the input is not a PR URL, it returns the input as-is.
-func resolveBranch(input string) (branch string, isPR bool, err error) {
+func resolveBranch(input string) (branch string, prNumber string, err error) {
 	if strings.HasPrefix(input, "https://github.com/") && strings.Contains(input, "/pull/") {
+		// Extract PR number from URL
+		parts := strings.Split(input, "/pull/")
+		if len(parts) == 2 {
+			prNumber = strings.TrimRight(parts[1], "/")
+		}
 		out, err := exec.Command("gh", "pr", "view", input, "--json", "headRefName", "-q", ".headRefName").Output()
 		if err != nil {
-			return "", false, fmt.Errorf("failed to resolve PR: %s", input)
+			return "", "", fmt.Errorf("failed to resolve PR: %s", input)
 		}
-		return strings.TrimSpace(string(out)), true, nil
+		return strings.TrimSpace(string(out)), prNumber, nil
 	}
-	return input, false, nil
+	return input, "", nil
 }
 
 func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName string, err error) {
-	var isPR bool
-	branch, isPR, err = resolveBranch(branch)
+	var prNumber string
+	branch, prNumber, err = resolveBranch(branch)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -1525,8 +1530,8 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	}
 
 	prefix := "wt-"
-	if isPR {
-		prefix = "pr-"
+	if prNumber != "" {
+		prefix = "pr" + prNumber + "-"
 	} else if isRemote {
 		prefix = "remote-"
 	}
@@ -1742,8 +1747,8 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 
 // createWorktreeOnly creates a worktree without creating a new sbx.
 func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch string, isRemote bool, err error) {
-	var isPR bool
-	branch, isPR, err = resolveBranch(branch)
+	var prNumber string
+	branch, prNumber, err = resolveBranch(branch)
 	if err != nil {
 		return
 	}
@@ -1800,8 +1805,8 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 	}
 
 	dirPrefix := ""
-	if isPR {
-		dirPrefix = "pr-"
+	if prNumber != "" {
+		dirPrefix = "pr" + prNumber + "-"
 	} else if isRemote {
 		dirPrefix = "remote-"
 	}
@@ -1848,8 +1853,14 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Detect PR/remote for display name prefix
-	isPR := strings.HasPrefix(branch, "https://github.com/") && strings.Contains(branch, "/pull/")
+	// Detect PR number for display name prefix
+	prNumber := ""
+	if strings.HasPrefix(branch, "https://github.com/") && strings.Contains(branch, "/pull/") {
+		parts := strings.Split(branch, "/pull/")
+		if len(parts) == 2 {
+			prNumber = strings.TrimRight(parts[1], "/")
+		}
+	}
 
 	wtPath, resolvedBranch, isRemote, err := createWorktreeOnly(repo, branch, baseBranch)
 	if err != nil {
@@ -1861,8 +1872,8 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 
 	// Determine display name prefix
 	prefix := "wt-"
-	if isPR {
-		prefix = "pr-"
+	if prNumber != "" {
+		prefix = "pr" + prNumber + "-"
 	} else if isRemote {
 		prefix = "remote-"
 	}
