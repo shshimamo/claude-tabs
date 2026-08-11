@@ -422,6 +422,7 @@ body {
 .output-light th,
 .output-light td {
   border-color: #bcc0cc;
+  color: #4c4f69;
 }
 .output-light code {
   background: #dce0e8;
