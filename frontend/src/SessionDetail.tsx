@@ -426,7 +426,14 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
                       </div>
                     )}
                     <div>
-                      <div className="history-role" style={{ color: '#a6e3a1' }}>Output</div>
+                      <div className="history-role" style={{ color: '#a6e3a1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Output
+                        <button
+                          className="action-btn"
+                          style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0 }}
+                          onClick={() => navigator.clipboard.writeText(item.output)}
+                        >⧉</button>
+                      </div>
                       <div className={`history-content${outputLight ? ' output-light' : ''}`} style={{ maxHeight: 'none' }}>
                         {outputMode === 'md'
                           ? <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{item.output}</Markdown>
