@@ -64,7 +64,6 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const [sendText, setSendText] = useState('')
   const [sending, setSending] = useState(false)
   const [keysSent, setKeysSent] = useState(false)
-  const [syncWaiting, setSyncWaiting] = useState(false)
   const [presets, setPresets] = useState<{ label: string; text: string }[]>([])
   const [cwdBases, setCwdBases] = useState<string[]>([])
   const [memo, setMemo] = useState('')
@@ -87,7 +86,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const ttyInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { setKeysSent(false); setSyncWaiting(false) }, [session.status, session.last_output])
+  useEffect(() => { setKeysSent(false) }, [session.status, session.last_output])
 
   // Sync memo from session
   useEffect(() => {
@@ -304,23 +303,16 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
       </div>
 
       {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
-        <div className={`detail-input-section${syncWaiting ? ' sync-waiting' : ''}`}>
-          {syncWaiting ? (
-            <div className="sync-waiting-msg">同期待ち...</div>
+        <div className="detail-input-section">
+          <div className="detail-input-label">許可選択</div>
+          {keysSent ? (
+            <div className="keys-sent-msg">送信済み ✓</div>
           ) : (
-            <>
-              <div className="detail-input-label">許可選択</div>
-              {keysSent ? (
-                <div className="keys-sent-msg">送信済み ✓</div>
-              ) : (
-                <div className="detail-input-row">
-                  <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
-                  <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
-                  <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
-                  <button className="action-btn sync-btn" onClick={() => setSyncWaiting(true)} title="iTerm で直接操作した場合">⏳ Sync待ち</button>
-                </div>
-              )}
-            </>
+            <div className="detail-input-row">
+              <button className="action-btn allow-btn" onClick={() => handleSendKeys('allow')} disabled={sending}>✅ Allow</button>
+              <button className="action-btn allow-always-btn" onClick={() => handleSendKeys('allow_always')} disabled={sending}>🔓 Allow Always</button>
+              <button className="action-btn deny-btn" onClick={() => handleSendKeys('deny')} disabled={sending}>❌ Deny</button>
+            </div>
           )}
         </div>
       )}

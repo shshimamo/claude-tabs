@@ -504,18 +504,6 @@ body {
 .deny-btn { border-color: #f38ba8; color: #f38ba8; }
 .deny-btn:hover { background: rgba(243,139,168,0.15); }
 
-.sync-waiting {
-  opacity: 0.5;
-  pointer-events: none;
-}
-.sync-waiting-msg {
-  color: #6c7086;
-  font-size: 14px;
-  padding: 8px 0;
-  animation: status-pulse 1.5s ease-in-out infinite;
-}
-.sync-btn { border-color: #6c7086; color: #6c7086; }
-.sync-btn:hover { background: rgba(108,112,134,0.15); }
 
 .keys-sent-msg {
   color: #a6e3a1;
