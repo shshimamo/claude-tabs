@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
+import { t, type Locale } from './i18n'
 
 type Props = {
   onClose: () => void
+  locale: Locale
 }
 
 type Mode = 'existing' | 'worktree'
 
-export default function SbxRunModal({ onClose }: Props) {
+export default function SbxRunModal({ onClose, locale }: Props) {
   const [sbxList, setSbxList] = useState<string[]>([])
   const [repoList, setRepoList] = useState<string[]>([])
   const [sbx, setSbx] = useState('')
@@ -128,10 +130,7 @@ export default function SbxRunModal({ onClose }: Props) {
                 <span className="tooltip-wrap">
                   <span className="tooltip-icon">?</span>
                   <span className="tooltip-content">
-                    1. worktree が既に存在 → そのまま使用{'\n'}
-                    2. origin/branch が存在 → リモートブランチから作成{'\n'}
-                    3. ローカルに branch が存在 → ローカルブランチから作成{'\n'}
-                    4. どちらもない → base branch (default: リポジトリのチェックアウト中ブランチ) から新規作成
+                    {t('branch_tooltip', locale).split('\n').map((line, i) => <span key={i}>{line}{'\n'}</span>)}
                   </span>
                 </span>
               </label>
@@ -141,7 +140,7 @@ export default function SbxRunModal({ onClose }: Props) {
                 onChange={e => setWtBranch(e.target.value)}
                 placeholder="e.g. feature/xxx or https://github.com/.../pull/123"
               />
-              <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
+              <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>{t('base_branch_hint', locale)}</span></label>
               <input
                 className="modal-input"
                 value={wtBase}
@@ -153,14 +152,14 @@ export default function SbxRunModal({ onClose }: Props) {
 
           {sbx && mode === 'existing' && selectedRepo && (
             <div className="modal-steps">
-              <div className="modal-steps-label">実行コマンド</div>
+              <div className="modal-steps-label">{t('commands', locale)}</div>
               <div className="modal-step">sbx exec -it {sbx} sh -c 'cd {selectedRepo} && claude'</div>
             </div>
           )}
 
           {sbx && mode === 'worktree' && wtRepo && wtBranch && (
             <div className="modal-steps">
-              <div className="modal-steps-label">実行コマンド</div>
+              <div className="modal-steps-label">{t('commands', locale)}</div>
               <div className="modal-step">git worktree add ~/worktrees/{wtRepo}/{wtBranch}{wtBase ? ` (base: ${wtBase})` : ''}</div>
               <div className="modal-step">sbx exec -it {sbx} sh -c 'cd .../{wtRepo}/{wtBranch} && claude'</div>
             </div>

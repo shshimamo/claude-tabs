@@ -1125,8 +1125,8 @@ type Preset struct {
 
 var defaultPresets = []Preset{
 	{Label: "Yes", Text: "yes"},
-	{Label: "Commit", Text: "commit して"},
-	{Label: "Commit & Push", Text: "commit して push して"},
+	{Label: "Commit", Text: "commit"},
+	{Label: "Commit & Push", Text: "commit and push"},
 }
 
 

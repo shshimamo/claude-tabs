@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Session } from './App'
+import { statusLabel, t, type Locale } from './i18n'
 
 const STATUS_ORDER = ['waiting_input', 'permission_required', 'ai_working', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
 
-const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  ai_working:          { label: 'AI作業中',     icon: '⚡', color: '#89b4fa' },
-  waiting_input:       { label: '回答待ち',     icon: '❓', color: '#f2cdcd' },
-  permission_required: { label: '許可待ち',     icon: '🔐', color: '#fab387' },
-  idle:                { label: '入力待ち',     icon: '✏️', color: '#f9e2af' },
-  inactive_1h:         { label: '1時間経過',    icon: '⏸️', color: '#585b70' },
-  inactive_3h:         { label: '3時間経過',    icon: '⏸️', color: '#504f6a' },
-  inactive_12h:        { label: '12時間経過',   icon: '⏸️', color: '#484764' },
-  inactive_24h:        { label: '24時間経過',   icon: '⏸️', color: '#45475a' },
-  terminated:          { label: '終了',         icon: '⛔', color: '#45475a' },
+const STATUS_ICON_COLOR: Record<string, { icon: string; color: string }> = {
+  ai_working:          { icon: '⚡', color: '#89b4fa' },
+  waiting_input:       { icon: '❓', color: '#f2cdcd' },
+  permission_required: { icon: '🔐', color: '#fab387' },
+  idle:                { icon: '✏️', color: '#f9e2af' },
+  inactive_1h:         { icon: '⏸️', color: '#585b70' },
+  inactive_3h:         { icon: '⏸️', color: '#504f6a' },
+  inactive_12h:        { icon: '⏸️', color: '#484764' },
+  inactive_24h:        { icon: '⏸️', color: '#45475a' },
+  terminated:          { icon: '⛔', color: '#45475a' },
 }
 
 const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
@@ -47,9 +48,11 @@ type Props = {
   onDelete: (id: string) => void
   onFocus: (id: string) => void
   width: number
+  locale: Locale
+  statusLabels?: Record<string, string>
 }
 
-export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus, width }: Props) {
+export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus, width, locale, statusLabels }: Props) {
   const [groups, setGroups] = useState<Group[]>(loadGroups)
   const [editingGroup, setEditingGroup] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -71,12 +74,17 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
     if (JSON.stringify(cleaned) !== JSON.stringify(groups)) setGroups(cleaned)
   }, [sessions])
 
+  const getStatusConfig = (status: string) => {
+    const base = STATUS_ICON_COLOR[status] ?? { icon: '?', color: '#cdd6f4' }
+    return { ...base, label: statusLabel(status, locale, statusLabels) }
+  }
+
   const groupedSessionIds = new Set(groups.flatMap(g => g.sessionIds))
   const ungrouped = sessions.filter(s => !groupedSessionIds.has(s.session_id))
 
   const statusGrouped = STATUS_ORDER.map(status => ({
     status,
-    config: STATUS_CONFIG[status] ?? { label: status, icon: '?', color: '#cdd6f4' },
+    config: getStatusConfig(status),
     items: ungrouped.filter(s => s.status === status),
   })).filter(g => g.items.length > 0)
 
@@ -147,7 +155,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
   const sessionMap = new Map(sessions.map(s => [s.session_id, s]))
 
   const renderSession = (session: Session) => {
-    const config = STATUS_CONFIG[session.status] ?? { label: session.status, icon: '?', color: '#cdd6f4' }
+    const config = getStatusConfig(session.status)
     const attention = ATTENTION_STATUSES.includes(session.status)
     return (
       <div
@@ -257,7 +265,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
         </div>
 
         {sessions.length === 0 && (
-          <div className="sidebar-empty">セッションなし</div>
+          <div className="sidebar-empty">{t('no_sessions', locale)}</div>
         )}
       </div>
     </aside>

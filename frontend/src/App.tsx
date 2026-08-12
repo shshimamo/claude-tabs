@@ -5,6 +5,7 @@ import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
 import SbxRunModal from './SbxRunModal'
+import { notifyLabel, t, type Locale } from './i18n'
 
 export type Session = {
   session_id: string
@@ -22,10 +23,14 @@ export type Session = {
   memo?: string
 }
 
-const NOTIFY_STATUSES: Record<string, string> = {
-  idle: '入力待ち',
-  waiting_input: '回答待ち',
-  permission_required: '許可待ち',
+const NOTIFY_STATUSES = ['idle', 'waiting_input', 'permission_required']
+
+function extractLabels(statuses: Record<string, { label?: string }>): Record<string, string> {
+  const labels: Record<string, string> = {}
+  for (const [k, v] of Object.entries(statuses)) {
+    if (v.label) labels[k] = v.label
+  }
+  return labels
 }
 
 let audioCtx: AudioContext | null = null
@@ -65,7 +70,10 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const prevSessionsRef = useRef<Map<string, string>>(new Map())
-  const [statusColors, setStatusColors] = useState<Record<string, { color: string; opacity: number }>>({})
+  const [statuses, setStatuses] = useState<Record<string, { color?: string; opacity?: number; label?: string }>>({})
+  const statusesRef = useRef<Record<string, { color?: string; opacity?: number; label?: string }>>({})
+  const [locale, setLocale] = useState<Locale>('en')
+  const localeRef = useRef<Locale>('en')
   const [focusTerminalOnSelect, setFocusTerminalOnSelect] = useState(false)
   const focusBrowserStatusesRef = useRef<string[]>([])
 
@@ -75,7 +83,12 @@ export default function App() {
       Notification.requestPermission()
     }
     fetch('/api/config').then(r => r.json()).then(cfg => {
-      if (cfg.status_colors) setStatusColors(cfg.status_colors)
+      if (cfg.locale === 'ja') { setLocale('ja'); localeRef.current = 'ja' }
+      // statuses (unified) or legacy status_colors
+      const merged: Record<string, { color?: string; opacity?: number; label?: string }> = {}
+      if (cfg.status_colors) for (const [k, v] of Object.entries(cfg.status_colors)) Object.assign(merged[k] ??= {}, v)
+      if (cfg.statuses) for (const [k, v] of Object.entries(cfg.statuses)) Object.assign(merged[k] ??= {}, v)
+      if (Object.keys(merged).length > 0) { setStatuses(merged); statusesRef.current = merged }
       if (cfg.focus_terminal_on_select) setFocusTerminalOnSelect(true)
       if (cfg.focus_browser_on_attention?.enable) {
         focusBrowserStatusesRef.current = cfg.focus_browser_on_attention.statuses || ['waiting_input', 'permission_required']
@@ -100,11 +113,11 @@ export default function App() {
         const prev = prevSessionsRef.current
         for (const s of data) {
           const oldStatus = prev.get(s.session_id)
-          if (oldStatus && oldStatus !== s.status && s.status in NOTIFY_STATUSES) {
+          if (oldStatus && oldStatus !== s.status && NOTIFY_STATUSES.includes(s.status)) {
             const name = s.custom_name || s.project_name
             if ('Notification' in window && Notification.permission === 'granted') {
               const n = new Notification(`claude-tabs: ${name}`, {
-                body: NOTIFY_STATUSES[s.status],
+                body: notifyLabel(s.status, localeRef.current, extractLabels(statusesRef.current)),
               })
               const sid = s.session_id
               n.onclick = () => { window.focus(); setSelectedId(sid); n.close() }
@@ -224,6 +237,9 @@ export default function App() {
     permission_required: { color: '250, 179, 135', opacity: 0.15 },
   }
 
+  const statusLabels = extractLabels(statuses)
+  const hasStatusLabels = Object.keys(statusLabels).length > 0
+
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
@@ -237,13 +253,14 @@ export default function App() {
         <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
-      {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} />}
-      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} />}
+      {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} locale={locale} />}
+      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} />}
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}
         onConfirm={(removeWt, removeSbx, sendExit) => executeDelete(deleteConfirm.id, removeWt, removeSbx, sendExit)}
         onCancel={() => setDeleteConfirm(null)}
+        locale={locale}
       />}
       <div className="body">
         <Sidebar
@@ -253,16 +270,24 @@ export default function App() {
           onDelete={handleDelete}
           onFocus={handleFocus}
           width={sidebarWidth}
+          locale={locale}
+          statusLabels={hasStatusLabels ? statusLabels : undefined}
         />
         <div className="sidebar-resize-handle" onMouseDown={handleMouseDown} />
-        <main className="main" style={selected && (statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status])
-          ? { background: `rgba(${(statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status]).color}, ${(statusColors[selected.status] || DEFAULT_STATUS_COLORS[selected.status]).opacity})` }
-          : undefined}>
+        <main className="main" style={(() => {
+          if (!selected) return undefined
+          const sc = statuses[selected.status]
+          const dc = DEFAULT_STATUS_COLORS[selected.status]
+          const color = sc?.color || dc?.color
+          const opacity = sc?.opacity ?? dc?.opacity
+          if (!color || opacity === undefined) return undefined
+          return { background: `rgba(${color}, ${opacity})` }
+        })()}>
           {selected ? (
-            <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} />
+            <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} locale={locale} statusLabels={hasStatusLabels ? statusLabels : undefined} />
           ) : (
             <div className="empty-hint">
-              セッションなし。Claude Code hooks を設定してセッションを開始してください。
+              {t('empty_hint', locale)}
             </div>
           )}
         </main>

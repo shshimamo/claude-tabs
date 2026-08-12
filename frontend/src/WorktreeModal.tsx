@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { t, type Locale } from './i18n'
 
 type Config = {
   worktree_base?: string
@@ -11,9 +12,10 @@ type Config = {
 
 type Props = {
   onClose: () => void
+  locale: Locale
 }
 
-export default function WorktreeModal({ onClose }: Props) {
+export default function WorktreeModal({ onClose, locale }: Props) {
   const [repo, setRepo] = useState('')
   const [branch, setBranch] = useState('')
   const [baseBranch, setBaseBranch] = useState('')
@@ -96,10 +98,7 @@ export default function WorktreeModal({ onClose }: Props) {
             <span className="tooltip-wrap">
               <span className="tooltip-icon">?</span>
               <span className="tooltip-content">
-                1. worktree が既に存在 → そのまま使用{'\n'}
-                2. origin/branch が存在 → リモートブランチから作成{'\n'}
-                3. ローカルに branch が存在 → ローカルブランチから作成{'\n'}
-                4. どちらもない → base branch (default: リポジトリのチェックアウト中ブランチ) から新規作成
+                {t('branch_tooltip', locale).split('\n').map((line, i) => <span key={i}>{line}{'\n'}</span>)}
               </span>
             </span>
           </label>
@@ -109,7 +108,7 @@ export default function WorktreeModal({ onClose }: Props) {
             onChange={e => setBranch(e.target.value)}
             placeholder="e.g. feature/xxx or https://github.com/.../pull/123"
           />
-          <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>(optional, default: チェックアウト中ブランチ)</span></label>
+          <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>{t('base_branch_hint', locale)}</span></label>
           <input
             className="modal-input"
             value={baseBranch}
@@ -130,7 +129,7 @@ export default function WorktreeModal({ onClose }: Props) {
           </button>
         </div>
         <div className="modal-steps">
-          <div className="modal-steps-label">実行コマンド</div>
+          <div className="modal-steps-label">{t('commands', locale)}</div>
           {steps.map((step, i) => (
             <div key={i} className="modal-step">{i + 1}. {step}</div>
           ))}

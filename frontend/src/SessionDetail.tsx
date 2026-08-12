@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import mermaid from 'mermaid'
 import { ShikiHighlighter } from 'react-shiki'
 import type { Session } from './App'
+import { statusLabel, t, type Locale } from './i18n'
 
 mermaid.initialize({ startOnLoad: false, theme: 'dark' })
 
@@ -22,12 +23,12 @@ function MermaidBlock({ code, light }: { code: string; light?: boolean }) {
   return <div ref={ref} />
 }
 
-const STATUS_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
-  ai_working:          { label: 'AI作業中',  icon: '⚡', className: 'status-working' },
-  waiting_input:       { label: '回答待ち',  icon: '❓', className: 'status-waiting' },
-  permission_required: { label: '許可待ち',  icon: '🔐', className: 'status-permission' },
-  idle:                { label: '入力待ち',  icon: '✏️', className: 'status-idle' },
-  terminated:          { label: '終了',      icon: '⛔', className: 'status-terminated' },
+const STATUS_ICON_CLASS: Record<string, { icon: string; className: string }> = {
+  ai_working:          { icon: '⚡', className: 'status-working' },
+  waiting_input:       { icon: '❓', className: 'status-waiting' },
+  permission_required: { icon: '🔐', className: 'status-permission' },
+  idle:                { icon: '✏️', className: 'status-idle' },
+  terminated:          { icon: '⛔', className: 'status-terminated' },
 }
 
 type HistoryMessage = {
@@ -50,10 +51,13 @@ type Props = {
   session: Session
   onRename: (id: string, name: string) => void
   onSetTTY: (id: string, tty: string) => void
+  locale: Locale
+  statusLabels?: Record<string, string>
 }
 
-export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
-  const config = STATUS_CONFIG[session.status] ?? { label: session.status, icon: '?', className: '' }
+export default function SessionDetail({ session, onRename, onSetTTY, locale, statusLabels }: Props) {
+  const base = STATUS_ICON_CLASS[session.status] ?? { icon: '?', className: '' }
+  const config = { ...base, label: statusLabel(session.status, locale, statusLabels) }
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editingTTY, setEditingTTY] = useState(false)
@@ -287,14 +291,14 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               className="detail-name-input"
               style={{ fontSize: 14 }}
               value={editTTY}
-              placeholder="/dev/ttys001 (sbx等リモート環境のFocus Terminal用)"
+              placeholder={t('tty_placeholder', locale)}
               onChange={e => setEditTTY(e.target.value)}
               onBlur={submitTTY}
               onKeyDown={e => { if (e.key === 'Enter') submitTTY(); if (e.key === 'Escape') setEditingTTY(false) }}
             />
           ) : (
             <span className="detail-value detail-mono" onClick={startEditTTY} style={{ cursor: 'pointer' }}>
-              {session.tty || <span style={{ color: '#6c7086' }}>Click to set TTY</span>}
+              {session.tty || <span style={{ color: '#6c7086' }}>{t('click_to_set_tty', locale)}</span>}
               <span className="edit-icon" style={{ opacity: 0.5, marginLeft: 6 }}>✎</span>
             </span>
           )}
@@ -303,9 +307,9 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
 
       {session.status === 'permission_required' && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
-          <div className="detail-input-label">選択肢を送信</div>
+          <div className="detail-input-label">{t('send_choice', locale)}</div>
           {keysSent ? (
-            <div className="keys-sent-msg">送信済み ✓</div>
+            <div className="keys-sent-msg">{t('sent', locale)}</div>
           ) : (
             <div className="detail-input-row">
               <button className="action-btn" onClick={() => handleSendKeys('1')} disabled={sending}>1</button>
@@ -325,31 +329,31 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
               {screenLoading ? '...' : '↻'}
             </button>
           </div>
-          <pre className="screen-content">{screenContent || (screenLoading ? '読み込み中...' : '内容なし')}</pre>
+          <pre className="screen-content">{screenContent || (screenLoading ? t('loading', locale) : t('no_content', locale))}</pre>
         </div>
       )}
 
       {['idle', 'waiting_input'].includes(session.status) && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
-          <div className="detail-input-label">定型文</div>
+          <div className="detail-input-label">{t('presets', locale)}</div>
           <div className="detail-input-row">
             {presets.map((p, i) => (
               <button key={i} className="action-btn" onClick={() => handleSendInput(p.text)} disabled={sending}>{p.label}</button>
             ))}
           </div>
-          <div className="detail-input-label" style={{ marginTop: 12 }}>自由入力</div>
+          <div className="detail-input-label" style={{ marginTop: 12 }}>{t('free_input', locale)}</div>
           <div className="detail-input-row">
             <textarea
               className="detail-send-input detail-send-textarea"
               value={sendText}
-              placeholder="入力を送信..."
+              placeholder={t('type_to_send', locale)}
               onChange={e => setSendText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && e.metaKey && sendText.trim()) { e.preventDefault(); handleSendInput(sendText.trim()) } }}
               disabled={sending}
               rows={2}
             />
             <button className="action-btn" onClick={() => handleSendInput(sendText.trim())} disabled={sending || !sendText.trim()}>
-              送信(⌘+Enter)
+              {t('send_shortcut', locale)}
             </button>
           </div>
         </div>
@@ -365,7 +369,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
             className="memo-textarea"
             value={memo}
             onChange={e => updateMemo(e.target.value)}
-            placeholder="メモを入力..."
+            placeholder={t('enter_memo', locale)}
             rows={4}
           />
         )}
@@ -488,7 +492,7 @@ export default function SessionDetail({ session, onRename, onSetTTY }: Props) {
         {historyOpen && (
           <div className="history-list">
             {history.length === 0 && (
-              <div className="history-empty">会話履歴が見つからない</div>
+              <div className="history-empty">{t('no_history', locale)}</div>
             )}
             {history.map((msg, i) => (
               <div key={i} className={`history-msg history-${msg.role}`}>
