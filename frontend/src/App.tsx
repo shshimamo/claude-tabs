@@ -84,11 +84,7 @@ export default function App() {
     }
     fetch('/api/config').then(r => r.json()).then(cfg => {
       if (cfg.locale === 'ja') { setLocale('ja'); localeRef.current = 'ja' }
-      // statuses (unified) or legacy status_colors
-      const merged: Record<string, { color?: string; opacity?: number; label?: string }> = {}
-      if (cfg.status_colors) for (const [k, v] of Object.entries(cfg.status_colors)) Object.assign(merged[k] ??= {}, v)
-      if (cfg.statuses) for (const [k, v] of Object.entries(cfg.statuses)) Object.assign(merged[k] ??= {}, v)
-      if (Object.keys(merged).length > 0) { setStatuses(merged); statusesRef.current = merged }
+      if (cfg.statuses) { setStatuses(cfg.statuses); statusesRef.current = cfg.statuses }
       if (cfg.focus_terminal_on_select) setFocusTerminalOnSelect(true)
       if (cfg.focus_browser_on_attention?.enable) {
         focusBrowserStatusesRef.current = cfg.focus_browser_on_attention.statuses || ['waiting_input', 'permission_required']

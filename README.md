@@ -251,7 +251,8 @@ make install
 | `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
-| `status_colors`        | 表示カスタマイズ         | ステータス別の背景色（`{ "color": "R, G, B", "opacity": 0.15 }`） | 内蔵デフォルト |
+| `locale`               | 表示カスタマイズ         | UI言語（`"en"` or `"ja"`） | `"en"` |
+| `statuses`             | 表示カスタマイズ         | ステータス別設定（`{ "color": "R, G, B", "opacity": 0.15, "label": "表示名" }`） | 内蔵デフォルト |
 | `focus_terminal_on_select` | フォーカス設定       | セッション選択時にターミナルを自動フォーカス | `false` |
 | `focus_browser_on_attention` | フォーカス設定     | ブラウザ自動フォーカス（下記参照） | `{ "enable": false }` |
 | `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
