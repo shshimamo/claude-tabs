@@ -1535,8 +1535,9 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	} else if isRemote {
 		prefix = "remote-"
 	}
-	sbxName = prefix + repo + "-" + branch
-	wtPath := filepath.Join(wtBase, repo, prefix+branch)
+	safeBranch := strings.ReplaceAll(branch, "/", "__")
+	sbxName = prefix + repo + "-" + safeBranch
+	wtPath := filepath.Join(wtBase, repo, prefix+safeBranch)
 
 	if _, err := os.Stat(wtPath); err == nil {
 		fmt.Println("Worktree already exists:", wtPath)
@@ -1810,7 +1811,8 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 	} else if isRemote {
 		dirPrefix = "remote-"
 	}
-	wtPath = filepath.Join(wtBase, repo, dirPrefix+branch)
+	safeBranch := strings.ReplaceAll(branch, "/", "__")
+	wtPath = filepath.Join(wtBase, repo, dirPrefix+safeBranch)
 
 	if _, statErr := os.Stat(wtPath); statErr == nil {
 		return // already exists
