@@ -159,6 +159,10 @@ export default function App() {
     const res = await fetch(`/api/sessions/delete-check?id=${id}`)
     if (!res.ok) return
     const info = await res.json()
+    if (!info.has_worktree && !info.has_sbx) {
+      executeDelete(id, false, false)
+      return
+    }
     setDeleteConfirm({
       id,
       hasWorktree: info.has_worktree,
@@ -168,10 +172,7 @@ export default function App() {
     })
   }, [])
 
-  const executeDelete = useCallback(async (id: string, removeWorktree: boolean, removeSbx: boolean, sendExit: boolean) => {
-    if (sendExit) {
-      await fetch(`/api/sessions/input?id=${encodeURIComponent(id)}&text=${encodeURIComponent('/exit')}`, { method: 'POST' })
-    }
+  const executeDelete = useCallback(async (id: string, removeWorktree: boolean, removeSbx: boolean) => {
     const params = new URLSearchParams({ id })
     if (removeWorktree) params.set('remove_worktree', '1')
     if (removeSbx) params.set('remove_sbx', '1')
@@ -254,7 +255,7 @@ export default function App() {
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}
-        onConfirm={(removeWt, removeSbx, sendExit) => executeDelete(deleteConfirm.id, removeWt, removeSbx, sendExit)}
+        onConfirm={(removeWt, removeSbx) => executeDelete(deleteConfirm.id, removeWt, removeSbx)}
         onCancel={() => setDeleteConfirm(null)}
         locale={locale}
       />}

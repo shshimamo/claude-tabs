@@ -42,7 +42,6 @@ const messages = {
   delete_resources:{ en: 'Also delete related resources?', ja: '関連リソースも削除しますか？' },
   delete_worktree: { en: 'Delete worktree',      ja: 'Worktree を削除' },
   delete_sandbox:  { en: 'Delete sandbox',       ja: 'Sandbox を削除' },
-  send_exit:       { en: 'Send /exit to terminate Claude Code', ja: '/exit を送信して Claude Code を終了' },
   delete:          { en: 'Delete',               ja: '削除' },
 
   // WorktreeModal / SbxRunModal tooltips
