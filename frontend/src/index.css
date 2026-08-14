@@ -682,6 +682,26 @@ body {
   overflow-y: auto;
 }
 
+.history-content table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.history-content th,
+.history-content td {
+  border: 1px solid #585b70;
+  padding: 4px 8px;
+}
+
+.history-content th {
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.history-content.output-light th,
+.history-content.output-light td {
+  border-color: #bcc0cc;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
