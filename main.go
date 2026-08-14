@@ -1171,9 +1171,10 @@ type Config struct {
 // Conversations
 
 type ConversationEntry struct {
-	Output  string `json:"output"`
-	Input   string `json:"input,omitempty"`
-	SavedAt string `json:"saved_at"`
+	Output   string `json:"output"`
+	Input    string `json:"input,omitempty"`
+	SavedAt  string `json:"saved_at"`
+	Favorite bool   `json:"favorite,omitempty"`
 }
 
 func conversationsDir() string {
@@ -1206,7 +1207,18 @@ func conversationMaxEntries() int {
 func saveConversations(sessionID string, entries []ConversationEntry) error {
 	max := conversationMaxEntries()
 	if len(entries) > max {
-		entries = entries[:max]
+		// Keep favorites, trim non-favorites from the end
+		var kept []ConversationEntry
+		nonFavCount := 0
+		for _, e := range entries {
+			if e.Favorite {
+				kept = append(kept, e)
+			} else if nonFavCount < max {
+				kept = append(kept, e)
+				nonFavCount++
+			}
+		}
+		entries = kept
 	}
 	dir := conversationsDir()
 	os.MkdirAll(dir, 0755)
@@ -1230,7 +1242,42 @@ func handleConversations(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(entries)
 
+	case "PATCH":
+		indexStr := r.URL.Query().Get("index")
+		if indexStr == "" {
+			http.Error(w, "index required", http.StatusBadRequest)
+			return
+		}
+		index := 0
+		fmt.Sscanf(indexStr, "%d", &index)
+		entries := loadConversations(sessionID)
+		if index < 0 || index >= len(entries) {
+			http.Error(w, "index out of range", http.StatusBadRequest)
+			return
+		}
+		entries[index].Favorite = !entries[index].Favorite
+		saveConversations(sessionID, entries)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"favorite": entries[index].Favorite})
+
 	case http.MethodDelete:
+		action := r.URL.Query().Get("action")
+		if action == "delete_non_favorites" {
+			entries := loadConversations(sessionID)
+			var kept []ConversationEntry
+			for _, e := range entries {
+				if e.Favorite {
+					kept = append(kept, e)
+				}
+			}
+			if len(kept) == 0 {
+				os.Remove(conversationFilePath(sessionID))
+			} else {
+				saveConversations(sessionID, kept)
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		indexStr := r.URL.Query().Get("index")
 		if indexStr == "" {
 			http.Error(w, "index required", http.StatusBadRequest)

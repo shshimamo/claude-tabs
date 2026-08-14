@@ -83,8 +83,9 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
   const [outputLight, setOutputLight] = useState(() => {
     return localStorage.getItem('output-light') === '1'
   })
-  const [savedOutputs, setSavedOutputs] = useState<{ output: string; input?: string; savedAt: string }[]>([])
+  const [savedOutputs, setSavedOutputs] = useState<{ output: string; input?: string; savedAt: string; favorite?: boolean }[]>([])
   const [savedOpen, setSavedOpen] = useState(false)
+  const [favFilter, setFavFilter] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [expandedSaved, setExpandedSaved] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -100,8 +101,8 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
   const fetchConversations = () => {
     fetch(`/api/conversations?session_id=${session.session_id}`)
       .then(r => r.json())
-      .then((data: { output: string; input?: string; saved_at: string }[]) => {
-        setSavedOutputs(data.map(d => ({ output: d.output, input: d.input, savedAt: d.saved_at })))
+      .then((data: { output: string; input?: string; saved_at: string; favorite?: boolean }[]) => {
+        setSavedOutputs(data.map(d => ({ output: d.output, input: d.input, savedAt: d.saved_at, favorite: d.favorite })))
       })
       .catch(() => setSavedOutputs([]))
   }
@@ -122,6 +123,21 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
   const deleteSavedOutput = (index: number) => {
     fetch(`/api/conversations?session_id=${session.session_id}&index=${index}`, { method: 'DELETE' })
       .then(() => setSavedOutputs(prev => prev.filter((_, i) => i !== index)))
+      .catch(() => {})
+  }
+
+  const deleteNonFavorites = () => {
+    fetch(`/api/conversations?session_id=${session.session_id}&action=delete_non_favorites`, { method: 'DELETE' })
+      .then(() => fetchConversations())
+      .catch(() => {})
+  }
+
+  const toggleFavorite = (index: number) => {
+    fetch(`/api/conversations?session_id=${session.session_id}&index=${index}`, { method: 'PATCH' })
+      .then(r => r.json())
+      .then((data: { favorite: boolean }) => {
+        setSavedOutputs(prev => prev.map((item, i) => i === index ? { ...item, favorite: data.favorite } : item))
+      })
       .catch(() => {})
   }
 
@@ -391,6 +407,20 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
           </button>
           <button
             className="action-btn"
+            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0, opacity: favFilter ? 1 : 0.5 }}
+            onClick={() => setFavFilter(v => !v)}
+            title="Filter favorites"
+          >★</button>
+          {savedOutputs.some(s => s.favorite) && (
+            <button
+              className="action-btn deny-btn"
+              style={{ fontSize: '10px', padding: '1px 4px', minWidth: 0 }}
+              onClick={() => { if (confirm(t('confirm_delete_non_favorites', locale))) deleteNonFavorites() }}
+              title="Delete non-favorites"
+            >🗑️</button>
+          )}
+          <button
+            className="action-btn"
             style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
             onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
           >{outputMode === 'text' ? 'MD' : 'Text'}</button>
@@ -403,6 +433,7 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
         <div className="history-list" style={{ maxHeight: conversationHeight }}>
           {savedOutputs.map((item, i) => {
             if (i > 0 && !savedOpen) return null
+            if (favFilter && !item.favorite) return null
             const expanded = expandedSaved.has(i)
             return (
               <div key={i} className="history-msg history-assistant">
@@ -412,7 +443,14 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
                     next.has(i) ? next.delete(i) : next.add(i)
                     return next
                   })}>
-                  <span>{expanded ? '▾' : '▸'} {i === 0 ? 'Latest' : item.savedAt}</span>
+                  <span>
+                    {expanded ? '▾' : '▸'} {i === 0 ? 'Latest' : item.savedAt}
+                    <button
+                      className="action-btn"
+                      style={{ fontSize: '10px', padding: '0px 4px', minWidth: 0, marginLeft: 6, opacity: item.favorite ? 1 : 0.3 }}
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(i) }}
+                    >{item.favorite ? '★' : '☆'}</button>
+                  </span>
                   {i > 0 && (
                     <button
                       className="action-btn deny-btn"

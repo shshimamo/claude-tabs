@@ -51,6 +51,7 @@ const messages = {
   },
   base_branch_hint:{ en: '(optional, default: current branch)', ja: '(optional, default: チェックアウト中ブランチ)' },
   commands:        { en: 'Commands',             ja: '実行コマンド' },
+  confirm_delete_non_favorites: { en: 'Delete all non-favorite entries?', ja: 'お気に入り以外を全て削除しますか？' },
 } as const
 
 export type MessageKey = keyof typeof messages
