@@ -40,11 +40,14 @@ type Props = {
   onFocus: (id: string) => void
   projects: Project[]
   sessionProjectMap: Record<string, string>
+  sessionOrder: Record<string, string[]>
   onCreateProject: () => void
   onDeleteProject: (id: string) => void
   onArchiveProject: (id: string) => void
   onAssignSession: (sessionId: string, projectId: string | null) => void
+  onRenameProject: (id: string, name: string) => void
   onReorderProjects: (ids: string[]) => void
+  onReorderSessions: (projectId: string, sessionIds: string[]) => void
   width: number
   locale: Locale
   statusLabels?: Record<string, string>
@@ -52,7 +55,8 @@ type Props = {
 
 export default function Sidebar({
   sessions, selectedId, selectedProjectId, onSelect, onSelectProject, onDelete, onFocus,
-  projects, sessionProjectMap, onCreateProject, onDeleteProject, onArchiveProject, onAssignSession, onReorderProjects,
+  projects, sessionProjectMap, sessionOrder, onCreateProject, onDeleteProject, onArchiveProject,
+  onAssignSession, onRenameProject, onReorderProjects, onReorderSessions,
   width, locale, statusLabels,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
@@ -61,6 +65,7 @@ export default function Sidebar({
   const [showArchived, setShowArchived] = useState(false)
   const [dragSessionId, setDragSessionId] = useState<string | null>(null)
   const [dragProjectId, setDragProjectId] = useState<string | null>(null)
+  const [dropTargetSessionId, setDropTargetSessionId] = useState<string | null>(null)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const editRef = useRef<HTMLInputElement>(null)
@@ -80,7 +85,6 @@ export default function Sidebar({
 
   const sessionMap = new Map(sessions.map(s => [s.session_id, s]))
 
-  // Sessions grouped by project
   const assignedSessionIds = new Set(Object.keys(sessionProjectMap))
   const ungrouped = sessions.filter(s => !assignedSessionIds.has(s.session_id))
 
@@ -101,17 +105,33 @@ export default function Sidebar({
     return count
   }
 
-  const getProjectSessionCount = (projectId: string) => {
-    let count = 0
-    for (const pid of Object.values(sessionProjectMap)) {
-      if (pid === projectId) count++
+  const getProjectSessions = (projectId: string): Session[] => {
+    const projectSessionIds = Object.entries(sessionProjectMap)
+      .filter(([, pid]) => pid === projectId)
+      .map(([sid]) => sid)
+    const order = sessionOrder[projectId]
+    if (order) {
+      const ordered: Session[] = []
+      for (const sid of order) {
+        if (projectSessionIds.includes(sid)) {
+          const s = sessionMap.get(sid)
+          if (s) ordered.push(s)
+        }
+      }
+      // Append any sessions not in the order list
+      for (const sid of projectSessionIds) {
+        if (!order.includes(sid)) {
+          const s = sessionMap.get(sid)
+          if (s) ordered.push(s)
+        }
+      }
+      return ordered
     }
-    return count
+    return projectSessionIds.map(sid => sessionMap.get(sid)).filter((s): s is Session => !!s)
   }
 
   const handleDropOnProject = (projectId: string) => {
     if (dragProjectId !== null && dragProjectId !== projectId) {
-      // Reorder projects
       const ids = activeProjects.map(p => p.id)
       const fromIdx = ids.indexOf(dragProjectId)
       const toIdx = ids.indexOf(projectId)
@@ -128,6 +148,22 @@ export default function Sidebar({
     setDragSessionId(null)
   }
 
+  const handleDropOnSession = (targetSessionId: string, projectId: string) => {
+    setDropTargetSessionId(null)
+    if (!dragSessionId || dragSessionId === targetSessionId) return
+    // Both must be in the same project
+    if (sessionProjectMap[dragSessionId] !== projectId) return
+    const projectSessions = getProjectSessions(projectId)
+    const ids = projectSessions.map(s => s.session_id)
+    const fromIdx = ids.indexOf(dragSessionId)
+    const toIdx = ids.indexOf(targetSessionId)
+    if (fromIdx < 0 || toIdx < 0) return
+    ids.splice(fromIdx, 1)
+    ids.splice(toIdx, 0, dragSessionId)
+    onReorderSessions(projectId, ids)
+    setDragSessionId(null)
+  }
+
   const handleDropOnUngrouped = () => {
     if (!dragSessionId) return
     onAssignSession(dragSessionId, null)
@@ -140,17 +176,28 @@ export default function Sidebar({
     items: ungrouped.filter(s => s.status === status),
   })).filter(g => g.items.length > 0)
 
-  const renderSession = (session: Session) => {
+  const renderSession = (session: Session, projectId?: string) => {
     const config = getStatusConfig(session.status)
     const attention = ATTENTION_STATUSES.includes(session.status)
     return (
       <div
         key={session.session_id}
-        className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}`}
+        className={`sidebar-item${session.session_id === selectedId ? ' selected' : ''}${attention ? ' attention' : ''}${session.session_id === dropTargetSessionId ? ' drop-target' : ''}`}
         onClick={() => onSelect(session.session_id)}
         onDoubleClick={() => onFocus(session.session_id)}
         draggable
         onDragStart={() => setDragSessionId(session.session_id)}
+        onDragOver={e => {
+          e.preventDefault()
+          if (projectId && dragSessionId && sessionProjectMap[dragSessionId] === projectId) {
+            setDropTargetSessionId(session.session_id)
+          }
+        }}
+        onDragLeave={() => setDropTargetSessionId(null)}
+        onDrop={e => {
+          e.stopPropagation()
+          if (projectId) handleDropOnSession(session.session_id, projectId)
+        }}
       >
         <div className="sidebar-item-main">
           <span
@@ -173,9 +220,8 @@ export default function Sidebar({
 
   const renderProject = (project: Project) => {
     const badge = getProjectBadge(project.id)
-    const sessionCount = getProjectSessionCount(project.id)
+    const projectSessions = getProjectSessions(project.id)
     const isCollapsed = collapsed[project.id]
-    const projectSessions = sessions.filter(s => sessionProjectMap[s.session_id] === project.id)
 
     return (
       <div
@@ -201,13 +247,8 @@ export default function Sidebar({
               onChange={e => setEditName(e.target.value)}
               onBlur={() => {
                 setEditingProjectId(null)
-                if (editName.trim()) {
-                  // Inline rename via API
-                  fetch(`/api/projects?id=${project.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...project, name: editName.trim() }),
-                  })
+                if (editName.trim() && editName.trim() !== project.name) {
+                  onRenameProject(project.id, editName.trim())
                 }
               }}
               onKeyDown={e => {
@@ -223,7 +264,7 @@ export default function Sidebar({
             >{project.name}</span>
           )}
           {badge > 0 && <span className="group-badge">{badge}</span>}
-          <span className="sidebar-group-count">{sessionCount}</span>
+          <span className="sidebar-group-count">{projectSessions.length}</span>
           <div className="project-actions">
             <button
               className="group-delete-btn"
@@ -237,7 +278,11 @@ export default function Sidebar({
             >×</button>
           </div>
         </div>
-        {!isCollapsed && projectSessions.map(renderSession)}
+        {!isCollapsed && (
+          projectSessions.length > 0
+            ? projectSessions.map(s => renderSession(s, project.id))
+            : <div className="sidebar-empty-project">Drag sessions here</div>
+        )}
       </div>
     )
   }
@@ -275,7 +320,7 @@ export default function Sidebar({
                 <span>{group.config.label}</span>
                 <span className="sidebar-group-count">{group.items.length}</span>
               </div>
-              {group.items.map(renderSession)}
+              {group.items.map(s => renderSession(s))}
             </div>
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { t, type Locale } from './i18n'
 
@@ -106,12 +106,37 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
   const [draft, setDraft] = useState(project)
   const [dirty, setDirty] = useState(false)
   const [memoEdit, setMemoEdit] = useState(false)
+  const draftRef = useRef(draft)
+  const dirtyRef = useRef(dirty)
+  const memoRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => { draftRef.current = draft }, [draft])
+  useEffect(() => { dirtyRef.current = dirty }, [dirty])
 
   useEffect(() => {
     setDraft(project)
     setDirty(false)
     setMemoEdit(false)
   }, [project.id])
+
+  const save = useCallback(() => {
+    if (dirtyRef.current) {
+      onUpdate(draftRef.current)
+      setDirty(false)
+    }
+  }, [onUpdate])
+
+  // Cmd+S to save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        save()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [save])
 
   const change = <K extends keyof Project>(key: K, value: Project[K]) => {
     setDraft(prev => ({ ...prev, [key]: value }))
@@ -136,10 +161,24 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
     change('link_sections', [...draft.link_sections, { label: 'New', links: [] }])
   }
 
-  const save = () => {
-    onUpdate(draft)
-    setDirty(false)
-  }
+  // Memo: click preview to enter edit, blur textarea to exit and save
+  const handleMemoBlur = useCallback((e: React.FocusEvent) => {
+    // Check if focus moved outside the memo area
+    const memoContainer = e.currentTarget.closest('.project-memo')
+    if (memoContainer && e.relatedTarget && memoContainer.contains(e.relatedTarget as Node)) return
+    setMemoEdit(false)
+    // Save on blur using latest draft via ref
+    setTimeout(() => {
+      if (dirtyRef.current) {
+        onUpdate(draftRef.current)
+        setDirty(false)
+      }
+    }, 0)
+  }, [onUpdate])
+
+  useEffect(() => {
+    if (memoEdit && memoRef.current) memoRef.current.focus()
+  }, [memoEdit])
 
   return (
     <div className="project-detail">
@@ -171,31 +210,28 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
       </div>
 
       <div className="project-memo">
-        <div className="project-memo-header">
-          <span className="project-link-label">{t('memo', locale)}</span>
-          <button className="project-link-add" onClick={() => setMemoEdit(!memoEdit)}>
-            {memoEdit ? 'Preview' : 'Edit'}
-          </button>
-        </div>
+        <span className="project-link-label">{t('memo', locale)}</span>
         {memoEdit ? (
           <textarea
+            ref={memoRef}
             className="project-memo-textarea"
             value={draft.memo}
             onChange={e => change('memo', e.target.value)}
+            onBlur={handleMemoBlur}
             placeholder="Markdown..."
           />
         ) : (
-          <div className="project-memo-preview">
+          <div className="project-memo-preview" onClick={() => setMemoEdit(true)}>
             {draft.memo ? (
               <ReactMarkdown
                 components={{
                   a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                    <a href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>{children}</a>
                   ),
                 }}
               >{draft.memo}</ReactMarkdown>
             ) : (
-              <span className="project-memo-empty">-</span>
+              <span className="project-memo-empty">Click to edit...</span>
             )}
           </div>
         )}

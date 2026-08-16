@@ -80,6 +80,7 @@ export default function App() {
   const focusBrowserStatusesRef = useRef<string[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [sessionProjectMap, setSessionProjectMap] = useState<Record<string, string>>({})
+  const [sessionOrder, setSessionOrder] = useState<Record<string, string[]>>({})
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
 
   // Load projects
@@ -87,6 +88,7 @@ export default function App() {
     fetch('/api/projects').then(r => r.json()).then(data => {
       setProjects(data.projects || [])
       setSessionProjectMap(data.session_project_map || {})
+      setSessionOrder(data.session_order || {})
     }).catch(() => {})
   }, [])
 
@@ -292,6 +294,27 @@ export default function App() {
     })
   }, [])
 
+  const handleRenameProject = useCallback(async (id: string, name: string) => {
+    const project = projects.find(p => p.id === id)
+    if (!project) return
+    const updated = { ...project, name }
+    await fetch(`/api/projects?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    })
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
+  }, [projects])
+
+  const handleReorderSessions = useCallback(async (projectId: string, sessionIds: string[]) => {
+    await fetch(`/api/projects/session-order?project_id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sessionIds),
+    })
+    setSessionOrder(prev => ({ ...prev, [projectId]: sessionIds }))
+  }, [])
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebar-width')
     return saved ? parseInt(saved, 10) : 260
@@ -367,7 +390,10 @@ export default function App() {
           onDeleteProject={handleDeleteProject}
           onArchiveProject={handleArchiveProject}
           onAssignSession={handleAssignSession}
+          onRenameProject={handleRenameProject}
           onReorderProjects={handleReorderProjects}
+          onReorderSessions={handleReorderSessions}
+          sessionOrder={sessionOrder}
           width={sidebarWidth}
           locale={locale}
           statusLabels={hasStatusLabels ? statusLabels : undefined}

@@ -1185,3 +1185,18 @@ body {
   border-color: #89b4fa;
   color: #89b4fa;
 }
+
+.sidebar-item.drop-target {
+  border-top: 2px solid #89b4fa;
+}
+
+.sidebar-empty-project {
+  padding: 8px 16px 8px 28px;
+  font-size: 11px;
+  color: #585b70;
+  font-style: italic;
+}
+
+.project-memo-preview {
+  cursor: text;
+}

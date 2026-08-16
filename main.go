@@ -1114,6 +1114,24 @@ func (s *server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Clean up project mapping
+	pf := loadProjects()
+	if _, ok := pf.SessionProjectMap[id]; ok {
+		projectID := pf.SessionProjectMap[id]
+		delete(pf.SessionProjectMap, id)
+		// Remove from session order
+		if order, exists := pf.SessionOrder[projectID]; exists {
+			filtered := make([]string, 0, len(order))
+			for _, sid := range order {
+				if sid != id {
+					filtered = append(filtered, sid)
+				}
+			}
+			pf.SessionOrder[projectID] = filtered
+		}
+		saveProjects(pf)
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 	s.broadcastSessions()
 }
@@ -1328,8 +1346,9 @@ type Project struct {
 }
 
 type ProjectsFile struct {
-	Projects          []Project         `json:"projects"`
-	SessionProjectMap map[string]string `json:"session_project_map"`
+	Projects          []Project            `json:"projects"`
+	SessionProjectMap map[string]string    `json:"session_project_map"`
+	SessionOrder      map[string][]string  `json:"session_order"`
 }
 
 func projectsFilePath() string {
@@ -1346,6 +1365,9 @@ func loadProjects() ProjectsFile {
 	json.Unmarshal(data, &pf)
 	if pf.SessionProjectMap == nil {
 		pf.SessionProjectMap = map[string]string{}
+	}
+	if pf.SessionOrder == nil {
+		pf.SessionOrder = map[string][]string{}
 	}
 	return pf
 }
@@ -1527,6 +1549,30 @@ func handleProjectReorder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	pf.Projects = reordered
+	if err := saveProjects(pf); err != nil {
+		http.Error(w, "save error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleSessionOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	projectID := r.URL.Query().Get("project_id")
+	if projectID == "" {
+		http.Error(w, "project_id required", http.StatusBadRequest)
+		return
+	}
+	var sessionIDs []string
+	if err := json.NewDecoder(r.Body).Decode(&sessionIDs); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	pf := loadProjects()
+	pf.SessionOrder[projectID] = sessionIDs
 	if err := saveProjects(pf); err != nil {
 		http.Error(w, "save error", http.StatusInternalServerError)
 		return
@@ -2223,6 +2269,7 @@ func runServer() {
 	mux.HandleFunc("/api/projects", handleProjects)
 	mux.HandleFunc("/api/projects/session-map", handleProjectSessionMap)
 	mux.HandleFunc("/api/projects/reorder", handleProjectReorder)
+	mux.HandleFunc("/api/projects/session-order", handleSessionOrder)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)
 
