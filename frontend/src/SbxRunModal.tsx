@@ -1,14 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { t, type Locale } from './i18n'
 
+type CreatedProject = {
+  name: string
+  githubUrl: string
+  slackUrl: string
+}
+
 type Props = {
   onClose: () => void
   locale: Locale
+  onCreateProject?: (project: CreatedProject) => Promise<void>
 }
 
 type Mode = 'existing' | 'worktree'
 
-export default function SbxRunModal({ onClose, locale }: Props) {
+export default function SbxRunModal({ onClose, locale, onCreateProject }: Props) {
   const [sbxList, setSbxList] = useState<string[]>([])
   const [repoList, setRepoList] = useState<string[]>([])
   const [sbx, setSbx] = useState('')
@@ -22,6 +29,11 @@ export default function SbxRunModal({ onClose, locale }: Props) {
   const [wtBase, setWtBase] = useState('')
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  // project creation
+  const [createProject, setCreateProject] = useState(false)
+  const [projectName, setProjectName] = useState('')
+  const [githubUrl, setGithubUrl] = useState('')
+  const [slackUrl, setSlackUrl] = useState('')
 
   useEffect(() => {
     fetch('/api/sbx/list').then(r => r.json()).then(setSbxList).catch(() => {})
@@ -51,6 +63,9 @@ export default function SbxRunModal({ onClose, locale }: Props) {
       }
       const data = await res.json()
       setResult({ ok: res.ok, message: data.message })
+      if (res.ok && createProject && projectName.trim() && onCreateProject) {
+        await onCreateProject({ name: projectName.trim(), githubUrl: githubUrl.trim(), slackUrl: slackUrl.trim() })
+      }
       if (res.ok) setTimeout(onClose, 2000)
     } catch {
       setResult({ ok: false, message: 'Request failed' })
@@ -148,6 +163,42 @@ export default function SbxRunModal({ onClose, locale }: Props) {
                 placeholder="e.g. main, develop"
               />
             </>
+          )}
+
+          <div className="modal-project-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={createProject}
+                onChange={e => setCreateProject(e.target.checked)}
+              />
+              {' '}Create Project
+            </label>
+          </div>
+          {createProject && (
+            <div className="modal-project-fields">
+              <label className="modal-label">Project Name</label>
+              <input
+                className="modal-input"
+                value={projectName}
+                onChange={e => setProjectName(e.target.value)}
+                placeholder="e.g. Review PR #123"
+              />
+              <label className="modal-label">GitHub Link <span style={{ color: '#6c7086', fontSize: 12 }}>optional</span></label>
+              <input
+                className="modal-input"
+                value={githubUrl}
+                onChange={e => setGithubUrl(e.target.value)}
+                placeholder="e.g. https://github.com/org/repo/pull/123"
+              />
+              <label className="modal-label">Slack Link <span style={{ color: '#6c7086', fontSize: 12 }}>optional</span></label>
+              <input
+                className="modal-input"
+                value={slackUrl}
+                onChange={e => setSlackUrl(e.target.value)}
+                placeholder="e.g. https://org.slack.com/archives/..."
+              />
+            </div>
           )}
 
           {sbx && mode === 'existing' && selectedRepo && (

@@ -368,7 +368,21 @@ export default function App() {
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} locale={locale} />}
-      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} />}
+      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} onCreateProject={async ({ name, githubUrl, slackUrl }) => {
+        const linkSections = []
+        if (githubUrl) linkSections.push({ label: 'GitHub', links: [{ name: 'Link', url: githubUrl }] })
+        if (slackUrl) linkSections.push({ label: 'Slack', links: [{ name: 'Link', url: slackUrl }] })
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, link_sections: linkSections }),
+        })
+        if (!res.ok) return
+        const p = await res.json()
+        setProjects(prev => [...prev, p])
+        setSelectedProjectId(p.id)
+        setSelectedId(null)
+      }} />}
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}

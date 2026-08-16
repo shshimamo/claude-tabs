@@ -884,6 +884,26 @@ body {
   max-width: 90vw;
 }
 
+.modal-project-toggle {
+  margin-top: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #313244;
+}
+
+.modal-project-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #a6adc8;
+  font-size: 13px;
+}
+
+.modal-project-fields {
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
 .modal-steps {
   background: #181825;
   border-top: 1px solid #313244;
