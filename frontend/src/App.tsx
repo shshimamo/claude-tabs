@@ -132,13 +132,14 @@ export default function App() {
                 body: notifyLabel(s.status, localeRef.current, extractLabels(statusesRef.current)),
               })
               const sid = s.session_id
-              n.onclick = () => { window.focus(); setSelectedId(sid); n.close() }
+              n.onclick = () => { window.focus(); setSelectedId(sid); setSelectedProjectId(null); n.close() }
             }
             playNotificationSound()
           }
           // Auto-select session on focus_browser_on_attention status change
           if (oldStatus && oldStatus !== s.status && focusBrowserStatusesRef.current.includes(s.status)) {
             setSelectedId(s.session_id)
+            setSelectedProjectId(null)
           }
         }
         // Update prev state
