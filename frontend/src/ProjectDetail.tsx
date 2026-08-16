@@ -6,6 +6,7 @@ type NamedLink = { name: string; url: string }
 type LinkSection = { label: string; links: NamedLink[] }
 
 export const DEFAULT_LINK_SECTIONS: LinkSection[] = [
+  { label: 'GitHub', links: [] },
   { label: 'PRD', links: [] },
   { label: 'Spec', links: [] },
   { label: 'NotebookLM', links: [] },
@@ -28,11 +29,12 @@ type Props = {
   locale: Locale
 }
 
-function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection }: {
+function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection, onFieldBlur }: {
   section: LinkSection
   onChange: (links: NamedLink[]) => void
   onRemoveSection: () => void
   onRenameSection: (name: string) => void
+  onFieldBlur: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [editLabel, setEditLabel] = useState(section.label)
@@ -44,8 +46,8 @@ function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection }
     const next = section.links.map((l, i) => i === idx ? { ...l, [field]: value } : l)
     onChange(next)
   }
-  const remove = (idx: number) => onChange(section.links.filter((_, i) => i !== idx))
-  const add = () => onChange([...section.links, { name: '', url: '' }])
+  const remove = (idx: number) => { onChange(section.links.filter((_, i) => i !== idx)); onFieldBlur() }
+  const add = () => { onChange([...section.links, { name: '', url: '' }]); onFieldBlur() }
 
   return (
     <div className="project-link-section">
@@ -56,7 +58,7 @@ function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection }
             className="group-name-input"
             value={editLabel}
             onChange={e => setEditLabel(e.target.value)}
-            onBlur={() => { setEditing(false); if (editLabel.trim()) onRenameSection(editLabel.trim()) }}
+            onBlur={() => { setEditing(false); if (editLabel.trim()) { onRenameSection(editLabel.trim()); onFieldBlur() } }}
             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditing(false) }}
           />
         ) : (
@@ -65,7 +67,7 @@ function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection }
           </span>
         )}
         <button className="project-link-add" onClick={add}>+</button>
-        <button className="project-link-remove" onClick={onRemoveSection} title="Remove section">x</button>
+        <button className="project-link-remove" onClick={() => { if (confirm(`Remove "${section.label}" section?`)) onRemoveSection() }} title="Remove section">x</button>
       </div>
       {section.links.map((link, idx) => (
         <div key={idx} className="project-link-row">
@@ -73,12 +75,14 @@ function LinkSectionView({ section, onChange, onRemoveSection, onRenameSection }
             className="project-link-name"
             value={link.name}
             onChange={e => update(idx, 'name', e.target.value)}
+            onBlur={onFieldBlur}
             placeholder="Name"
           />
           <input
             className="project-link-url"
             value={link.url}
             onChange={e => update(idx, 'url', e.target.value)}
+            onBlur={onFieldBlur}
             placeholder="https://..."
           />
           {link.url && (
@@ -138,9 +142,18 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
     return () => window.removeEventListener('keydown', handler)
   }, [save])
 
-  const change = <K extends keyof Project>(key: K, value: Project[K]) => {
-    setDraft(prev => ({ ...prev, [key]: value }))
-    setDirty(true)
+  const change = <K extends keyof Project>(key: K, value: Project[K], immediate = false) => {
+    const updated = { ...draftRef.current, [key]: value }
+    setDraft(updated)
+    draftRef.current = updated
+    if (immediate) {
+      onUpdate(updated)
+      setDirty(false)
+      dirtyRef.current = false
+    } else {
+      setDirty(true)
+      dirtyRef.current = true
+    }
   }
 
   const updateSection = (idx: number, links: NamedLink[]) => {
@@ -154,11 +167,11 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
   }
 
   const removeSection = (idx: number) => {
-    change('link_sections', draft.link_sections.filter((_, i) => i !== idx))
+    change('link_sections', draft.link_sections.filter((_, i) => i !== idx), true)
   }
 
   const addSection = () => {
-    change('link_sections', [...draft.link_sections, { label: 'New', links: [] }])
+    change('link_sections', [...draft.link_sections, { label: 'New', links: [] }], true)
   }
 
   // Memo: click preview to enter edit, blur textarea to exit and save
@@ -187,11 +200,9 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
           className="project-name-input"
           value={draft.name}
           onChange={e => change('name', e.target.value)}
+          onBlur={() => setTimeout(() => { if (dirtyRef.current) { onUpdate(draftRef.current); setDirty(false) } }, 0)}
           placeholder="Project name"
         />
-        {dirty && (
-          <button className="action-btn" onClick={save}>{t('save', locale)}</button>
-        )}
       </div>
 
       <div className="project-links">
@@ -202,6 +213,7 @@ export default function ProjectDetail({ project, onUpdate, locale }: Props) {
             onChange={links => updateSection(idx, links)}
             onRenameSection={label => renameSection(idx, label)}
             onRemoveSection={() => removeSection(idx)}
+            onFieldBlur={() => setTimeout(() => { if (dirtyRef.current) { onUpdate(draftRef.current); setDirty(false) } }, 0)}
           />
         ))}
         <button className="project-add-section" onClick={addSection}>

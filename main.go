@@ -1415,6 +1415,7 @@ func handleProjects(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				p.LinkSections = []LinkSection{
+					{Label: "GitHub", Links: []NamedLink{}},
 					{Label: "PRD", Links: []NamedLink{}},
 					{Label: "Spec", Links: []NamedLink{}},
 					{Label: "NotebookLM", Links: []NamedLink{}},
