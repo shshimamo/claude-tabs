@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar'
 import SessionDetail from './SessionDetail'
+import ProjectDetail from './ProjectDetail'
+import type { Project } from './ProjectDetail'
 import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
@@ -76,6 +78,17 @@ export default function App() {
   const localeRef = useRef<Locale>('en')
   const [focusTerminalOnSelect, setFocusTerminalOnSelect] = useState(false)
   const focusBrowserStatusesRef = useRef<string[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [sessionProjectMap, setSessionProjectMap] = useState<Record<string, string>>({})
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+
+  // Load projects
+  const loadProjectsData = useCallback(() => {
+    fetch('/api/projects').then(r => r.json()).then(data => {
+      setProjects(data.projects || [])
+      setSessionProjectMap(data.session_project_map || {})
+    }).catch(() => {})
+  }, [])
 
   // Request notification permission + load config on mount
   useEffect(() => {
@@ -90,6 +103,7 @@ export default function App() {
         focusBrowserStatusesRef.current = cfg.focus_browser_on_attention.statuses || ['waiting_input', 'permission_required']
       }
     }).catch(() => {})
+    loadProjectsData()
   }, [])
 
   // WebSocket connection with auto-reconnect
@@ -200,6 +214,84 @@ export default function App() {
     await fetch(`/api/sessions/focus?id=${encodeURIComponent(id)}`, { method: 'POST' })
   }, [])
 
+  const handleCreateProject = useCallback(async () => {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'New Project' }),
+    })
+    if (!res.ok) return
+    const p = await res.json()
+    setProjects(prev => [...prev, p])
+    setSelectedProjectId(p.id)
+    setSelectedId(null)
+  }, [])
+
+  const handleUpdateProject = useCallback(async (project: Project) => {
+    await fetch(`/api/projects?id=${project.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project),
+    })
+    setProjects(prev => prev.map(p => p.id === project.id ? project : p))
+  }, [])
+
+  const handleDeleteProject = useCallback(async (id: string) => {
+    if (!confirm(t('delete_project', locale))) return
+    await fetch(`/api/projects?id=${id}`, { method: 'DELETE' })
+    setProjects(prev => prev.filter(p => p.id !== id))
+    setSessionProjectMap(prev => {
+      const next = { ...prev }
+      for (const [sid, pid] of Object.entries(next)) {
+        if (pid === id) delete next[sid]
+      }
+      return next
+    })
+    if (selectedProjectId === id) setSelectedProjectId(null)
+  }, [locale, selectedProjectId])
+
+  const handleArchiveProject = useCallback(async (id: string) => {
+    const project = projects.find(p => p.id === id)
+    if (!project) return
+    const updated = { ...project, archived: !project.archived }
+    await fetch(`/api/projects?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    })
+    setProjects(prev => prev.map(p => p.id === id ? updated : p))
+  }, [projects])
+
+  const handleAssignSession = useCallback(async (sessionId: string, projectId: string | null) => {
+    await fetch(`/api/projects/session-map?session_id=${encodeURIComponent(sessionId)}&project_id=${encodeURIComponent(projectId || '')}`, { method: 'PUT' })
+    setSessionProjectMap(prev => {
+      const next = { ...prev }
+      if (projectId) {
+        next[sessionId] = projectId
+      } else {
+        delete next[sessionId]
+      }
+      return next
+    })
+  }, [])
+
+  const handleReorderProjects = useCallback(async (ids: string[]) => {
+    await fetch('/api/projects/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    })
+    setProjects(prev => {
+      const map = new Map(prev.map(p => [p.id, p]))
+      const reordered: Project[] = []
+      for (const id of ids) {
+        const p = map.get(id)
+        if (p) reordered.push(p)
+      }
+      return reordered
+    })
+  }, [])
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebar-width')
     return saved ? parseInt(saved, 10) : 260
@@ -238,6 +330,7 @@ export default function App() {
   const hasStatusLabels = Object.keys(statusLabels).length > 0
 
   const selected = sessions.find(s => s.session_id === selectedId) ?? null
+  const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null
   const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
   const hasAttention = sessions.some(s => ATTENTION_STATUSES.includes(s.status))
 
@@ -263,9 +356,18 @@ export default function App() {
         <Sidebar
           sessions={sessions}
           selectedId={selectedId}
-          onSelect={(id: string) => { setSelectedId(id); if (focusTerminalOnSelect) handleFocus(id) }}
+          selectedProjectId={selectedProjectId}
+          onSelect={(id: string) => { setSelectedId(id); setSelectedProjectId(null); if (focusTerminalOnSelect) handleFocus(id) }}
+          onSelectProject={(id: string) => { setSelectedProjectId(id); setSelectedId(null) }}
           onDelete={handleDelete}
           onFocus={handleFocus}
+          projects={projects}
+          sessionProjectMap={sessionProjectMap}
+          onCreateProject={handleCreateProject}
+          onDeleteProject={handleDeleteProject}
+          onArchiveProject={handleArchiveProject}
+          onAssignSession={handleAssignSession}
+          onReorderProjects={handleReorderProjects}
           width={sidebarWidth}
           locale={locale}
           statusLabels={hasStatusLabels ? statusLabels : undefined}
@@ -280,7 +382,9 @@ export default function App() {
           if (!color || opacity === undefined) return undefined
           return { background: `rgba(${color}, ${opacity})` }
         })()}>
-          {selected ? (
+          {selectedProject ? (
+            <ProjectDetail project={selectedProject} onUpdate={handleUpdateProject} locale={locale} />
+          ) : selected ? (
             <SessionDetail session={selected} onRename={handleRename} onSetTTY={handleSetTTY} locale={locale} statusLabels={hasStatusLabels ? statusLabels : undefined} />
           ) : (
             <div className="empty-hint">

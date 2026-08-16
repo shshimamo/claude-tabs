@@ -52,6 +52,17 @@ const messages = {
   base_branch_hint:{ en: '(optional, default: current branch)', ja: '(optional, default: チェックアウト中ブランチ)' },
   commands:        { en: 'Commands',             ja: '実行コマンド' },
   confirm_delete_non_favorites: { en: 'Delete all non-favorite entries?', ja: 'お気に入り以外を全て削除しますか？' },
+
+  // Projects
+  new_project:      { en: 'New Project',         ja: '新規プロジェクト' },
+  memo:             { en: 'Memo',                ja: 'メモ' },
+  add_link:         { en: 'Add section',         ja: 'セクション追加' },
+  archive:          { en: 'Archive',             ja: 'アーカイブ' },
+  unarchive:        { en: 'Unarchive',           ja: 'アーカイブ解除' },
+  show_archived:    { en: 'Show archived',       ja: 'アーカイブ表示' },
+  hide_archived:    { en: 'Hide archived',       ja: 'アーカイブ非表示' },
+  save:             { en: 'Save',                ja: '保存' },
+  delete_project:   { en: 'Delete project?',     ja: 'プロジェクトを削除？' },
 } as const
 
 export type MessageKey = keyof typeof messages

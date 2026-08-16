@@ -1166,6 +1166,11 @@ type Config struct {
 	FocusBrowserOnAttention  *FocusBrowserConfig          `json:"focus_browser_on_attention"`
 	ListenAddress            string                     `json:"listen_address"`
 	ConversationMaxEntries   int                        `json:"conversation_max_entries"`
+	Project                  ProjectConfig              `json:"project"`
+}
+
+type ProjectConfig struct {
+	DefaultLinkSections []LinkSection `json:"default_link_sections"`
 }
 
 // Conversations
@@ -1298,6 +1303,235 @@ func handleConversations(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// Projects
+
+type NamedLink struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+type LinkSection struct {
+	Label string      `json:"label"`
+	Links []NamedLink `json:"links"`
+}
+
+type Project struct {
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	LinkSections []LinkSection `json:"link_sections"`
+	Memo         string        `json:"memo"`
+	Archived     bool          `json:"archived"`
+	CreatedAt    string        `json:"created_at"`
+	Order        int           `json:"order"`
+}
+
+type ProjectsFile struct {
+	Projects          []Project         `json:"projects"`
+	SessionProjectMap map[string]string `json:"session_project_map"`
+}
+
+func projectsFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude-tabs", "projects.json")
+}
+
+func loadProjects() ProjectsFile {
+	data, err := os.ReadFile(projectsFilePath())
+	if err != nil {
+		return ProjectsFile{SessionProjectMap: map[string]string{}}
+	}
+	var pf ProjectsFile
+	json.Unmarshal(data, &pf)
+	if pf.SessionProjectMap == nil {
+		pf.SessionProjectMap = map[string]string{}
+	}
+	return pf
+}
+
+func saveProjects(pf ProjectsFile) error {
+	data, err := json.MarshalIndent(pf, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(projectsFilePath(), data, 0644)
+}
+
+func generateID() string {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(strings.NewReader(fmt.Sprintf("%d", time.Now().UnixNano())), b); err != nil {
+		// fallback
+	}
+	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+func handleProjects(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		pf := loadProjects()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pf)
+
+	case http.MethodPost:
+		// Create new project
+		var p Project
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		pf := loadProjects()
+		p.ID = generateID()
+		p.CreatedAt = time.Now().Format(time.RFC3339)
+		p.Order = len(pf.Projects)
+		if p.LinkSections == nil {
+			cfg := loadConfig()
+			if len(cfg.Project.DefaultLinkSections) > 0 {
+				p.LinkSections = make([]LinkSection, len(cfg.Project.DefaultLinkSections))
+				for i, s := range cfg.Project.DefaultLinkSections {
+					p.LinkSections[i] = LinkSection{Label: s.Label, Links: []NamedLink{}}
+				}
+			} else {
+				p.LinkSections = []LinkSection{
+					{Label: "PRD", Links: []NamedLink{}},
+					{Label: "Spec", Links: []NamedLink{}},
+					{Label: "NotebookLM", Links: []NamedLink{}},
+					{Label: "Slack", Links: []NamedLink{}},
+				}
+			}
+		}
+		pf.Projects = append(pf.Projects, p)
+		if err := saveProjects(pf); err != nil {
+			http.Error(w, "save error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(p)
+
+	case http.MethodPut:
+		// Update project
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id required", http.StatusBadRequest)
+			return
+		}
+		var update Project
+		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		pf := loadProjects()
+		found := false
+		for i, p := range pf.Projects {
+			if p.ID == id {
+				update.ID = p.ID
+				update.CreatedAt = p.CreatedAt
+				if update.LinkSections == nil {
+					update.LinkSections = []LinkSection{}
+				}
+				pf.Projects[i] = update
+				found = true
+				break
+			}
+		}
+		if !found {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if err := saveProjects(pf); err != nil {
+			http.Error(w, "save error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+
+	case http.MethodDelete:
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id required", http.StatusBadRequest)
+			return
+		}
+		pf := loadProjects()
+		filtered := make([]Project, 0, len(pf.Projects))
+		for _, p := range pf.Projects {
+			if p.ID != id {
+				filtered = append(filtered, p)
+			}
+		}
+		pf.Projects = filtered
+		// Remove session mappings for this project
+		for sid, pid := range pf.SessionProjectMap {
+			if pid == id {
+				delete(pf.SessionProjectMap, sid)
+			}
+		}
+		if err := saveProjects(pf); err != nil {
+			http.Error(w, "save error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func handleProjectSessionMap(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "session_id required", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		projectID := r.URL.Query().Get("project_id")
+		pf := loadProjects()
+		if projectID == "" {
+			// Remove mapping
+			delete(pf.SessionProjectMap, sessionID)
+		} else {
+			pf.SessionProjectMap[sessionID] = projectID
+		}
+		if err := saveProjects(pf); err != nil {
+			http.Error(w, "save error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func handleProjectReorder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var ids []string
+	if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	pf := loadProjects()
+	projectMap := make(map[string]*Project)
+	for i := range pf.Projects {
+		projectMap[pf.Projects[i].ID] = &pf.Projects[i]
+	}
+	reordered := make([]Project, 0, len(ids))
+	for i, id := range ids {
+		if p, ok := projectMap[id]; ok {
+			p.Order = i
+			reordered = append(reordered, *p)
+			delete(projectMap, id)
+		}
+	}
+	// Append any projects not in the reorder list
+	for _, p := range pf.Projects {
+		if _, ok := projectMap[p.ID]; ok {
+			reordered = append(reordered, p)
+		}
+	}
+	pf.Projects = reordered
+	if err := saveProjects(pf); err != nil {
+		http.Error(w, "save error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func configFilePath() string {
@@ -1986,6 +2220,9 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/memo", srv.handleMemo)
 	mux.HandleFunc("/api/config", handleConfig)
 	mux.HandleFunc("/api/conversations", handleConversations)
+	mux.HandleFunc("/api/projects", handleProjects)
+	mux.HandleFunc("/api/projects/session-map", handleProjectSessionMap)
+	mux.HandleFunc("/api/projects/reorder", handleProjectReorder)
 
 	mux.HandleFunc("/api/ws", srv.handleWS)
 

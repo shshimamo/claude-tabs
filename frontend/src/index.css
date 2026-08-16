@@ -932,3 +932,256 @@ body {
   border-color: #89b4fa;
   outline: none;
 }
+
+/* Sidebar - project selected */
+.selected-project {
+  background: rgba(137, 180, 250, 0.15);
+}
+
+.project-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.sidebar-archived-toggle {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #6c7086;
+  cursor: pointer;
+  text-align: center;
+}
+
+.sidebar-archived-toggle:hover {
+  color: #a6adc8;
+}
+
+/* ProjectDetail */
+.project-detail {
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.project-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.project-name-input {
+  font-size: 20px;
+  font-weight: bold;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: #cdd6f4;
+  padding: 4px 0;
+  flex: 1;
+  font-family: inherit;
+}
+
+.project-name-input:focus {
+  outline: none;
+  border-bottom-color: #89b4fa;
+}
+
+.project-links {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.project-link-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.project-link-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-link-label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #a6adc8;
+}
+
+.project-link-add {
+  background: none;
+  border: none;
+  color: #89b4fa;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.project-link-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-link-name {
+  width: 120px;
+  background: #181825;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.project-link-url {
+  flex: 1;
+  background: #181825;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.project-link-name:focus,
+.project-link-url:focus {
+  outline: none;
+  border-color: #89b4fa;
+}
+
+.project-link-open {
+  color: #89b4fa;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 2px;
+}
+
+.project-link-remove {
+  background: none;
+  border: none;
+  color: #585b70;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.project-link-remove:hover {
+  color: #f38ba8;
+}
+
+.project-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.project-link-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid #45475a;
+  border-radius: 12px;
+  color: #89b4fa;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.project-link-chip:hover {
+  background: rgba(137, 180, 250, 0.2);
+}
+
+.project-memo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.project-memo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-memo-textarea {
+  width: 100%;
+  min-height: 200px;
+  background: #181825;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.project-memo-textarea:focus {
+  outline: none;
+  border-color: #89b4fa;
+}
+
+.project-memo-preview {
+  background: #181825;
+  border: 1px solid #313244;
+  border-radius: 6px;
+  padding: 12px;
+  min-height: 60px;
+  font-size: 13px;
+  color: #cdd6f4;
+  line-height: 1.6;
+}
+
+.project-memo-preview a {
+  color: #89b4fa;
+}
+
+.project-memo-preview h1,
+.project-memo-preview h2,
+.project-memo-preview h3 {
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.project-memo-preview ul,
+.project-memo-preview ol {
+  padding-left: 20px;
+}
+
+.project-memo-preview table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.project-memo-preview th,
+.project-memo-preview td {
+  border: 1px solid #585b70;
+  padding: 4px 8px;
+}
+
+.project-memo-empty {
+  color: #585b70;
+}
+
+.project-add-section {
+  background: none;
+  border: 1px dashed #45475a;
+  border-radius: 6px;
+  color: #6c7086;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.project-add-section:hover {
+  border-color: #89b4fa;
+  color: #89b4fa;
+}

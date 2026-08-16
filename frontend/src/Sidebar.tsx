@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Session } from './App'
+import type { Project } from './ProjectDetail'
 import { statusLabel, t, type Locale } from './i18n'
 
 const STATUS_ORDER = ['waiting_input', 'permission_required', 'ai_working', 'idle', 'inactive_1h', 'inactive_3h', 'inactive_12h', 'inactive_24h', 'terminated']
@@ -18,18 +19,6 @@ const STATUS_ICON_COLOR: Record<string, { icon: string; color: string }> = {
 
 const ATTENTION_STATUSES = ['waiting_input', 'permission_required']
 
-type Group = { name: string; sessionIds: string[]; collapsed: boolean }
-
-function loadGroups(): Group[] {
-  try {
-    return JSON.parse(localStorage.getItem('sidebar-groups') || '[]')
-  } catch { return [] }
-}
-
-function saveGroups(groups: Group[]) {
-  localStorage.setItem('sidebar-groups', JSON.stringify(groups))
-}
-
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const sec = Math.floor(diff / 1000)
@@ -44,115 +33,112 @@ function timeAgo(dateStr: string): string {
 type Props = {
   sessions: Session[]
   selectedId: string | null
+  selectedProjectId: string | null
   onSelect: (id: string) => void
+  onSelectProject: (id: string) => void
   onDelete: (id: string) => void
   onFocus: (id: string) => void
+  projects: Project[]
+  sessionProjectMap: Record<string, string>
+  onCreateProject: () => void
+  onDeleteProject: (id: string) => void
+  onArchiveProject: (id: string) => void
+  onAssignSession: (sessionId: string, projectId: string | null) => void
+  onReorderProjects: (ids: string[]) => void
   width: number
   locale: Locale
   statusLabels?: Record<string, string>
 }
 
-export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFocus, width, locale, statusLabels }: Props) {
-  const [groups, setGroups] = useState<Group[]>(loadGroups)
-  const [editingGroup, setEditingGroup] = useState<number | null>(null)
+export default function Sidebar({
+  sessions, selectedId, selectedProjectId, onSelect, onSelectProject, onDelete, onFocus,
+  projects, sessionProjectMap, onCreateProject, onDeleteProject, onArchiveProject, onAssignSession, onReorderProjects,
+  width, locale, statusLabels,
+}: Props) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('sidebar-collapsed') || '{}') } catch { return {} }
+  })
+  const [showArchived, setShowArchived] = useState(false)
+  const [dragSessionId, setDragSessionId] = useState<string | null>(null)
+  const [dragProjectId, setDragProjectId] = useState<string | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const editRef = useRef<HTMLInputElement>(null)
-  const [dragSessionId, setDragSessionId] = useState<string | null>(null)
-  const [dragGroupIdx, setDragGroupIdx] = useState<number | null>(null)
 
-  useEffect(() => { saveGroups(groups) }, [groups])
-  useEffect(() => { if (editingGroup !== null) editRef.current?.focus() }, [editingGroup])
-
-  // Clean up stale session IDs (skip when sessions is empty to avoid clearing on reconnect)
   useEffect(() => {
-    if (sessions.length === 0) return
-    const sessionIds = new Set(sessions.map(s => s.session_id))
-    const cleaned = groups.map(g => ({
-      ...g,
-      sessionIds: g.sessionIds.filter(id => sessionIds.has(id)),
-    }))
-    if (JSON.stringify(cleaned) !== JSON.stringify(groups)) setGroups(cleaned)
-  }, [sessions])
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed))
+  }, [collapsed])
+
+  useEffect(() => {
+    if (editingProjectId) editRef.current?.focus()
+  }, [editingProjectId])
 
   const getStatusConfig = (status: string) => {
     const base = STATUS_ICON_COLOR[status] ?? { icon: '?', color: '#cdd6f4' }
     return { ...base, label: statusLabel(status, locale, statusLabels) }
   }
 
-  const groupedSessionIds = new Set(groups.flatMap(g => g.sessionIds))
-  const ungrouped = sessions.filter(s => !groupedSessionIds.has(s.session_id))
+  const sessionMap = new Map(sessions.map(s => [s.session_id, s]))
+
+  // Sessions grouped by project
+  const assignedSessionIds = new Set(Object.keys(sessionProjectMap))
+  const ungrouped = sessions.filter(s => !assignedSessionIds.has(s.session_id))
+
+  const activeProjects = projects.filter(p => !p.archived)
+  const archivedProjects = projects.filter(p => p.archived)
+
+  const toggleCollapse = (id: string) => {
+    setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const getProjectBadge = (projectId: string) => {
+    let count = 0
+    for (const [sid, pid] of Object.entries(sessionProjectMap)) {
+      if (pid !== projectId) continue
+      const s = sessionMap.get(sid)
+      if (s && ATTENTION_STATUSES.includes(s.status)) count++
+    }
+    return count
+  }
+
+  const getProjectSessionCount = (projectId: string) => {
+    let count = 0
+    for (const pid of Object.values(sessionProjectMap)) {
+      if (pid === projectId) count++
+    }
+    return count
+  }
+
+  const handleDropOnProject = (projectId: string) => {
+    if (dragProjectId !== null && dragProjectId !== projectId) {
+      // Reorder projects
+      const ids = activeProjects.map(p => p.id)
+      const fromIdx = ids.indexOf(dragProjectId)
+      const toIdx = ids.indexOf(projectId)
+      if (fromIdx >= 0 && toIdx >= 0) {
+        ids.splice(fromIdx, 1)
+        ids.splice(toIdx, 0, dragProjectId)
+        onReorderProjects(ids)
+      }
+      setDragProjectId(null)
+      return
+    }
+    if (!dragSessionId) return
+    onAssignSession(dragSessionId, projectId)
+    setDragSessionId(null)
+  }
+
+  const handleDropOnUngrouped = () => {
+    if (!dragSessionId) return
+    onAssignSession(dragSessionId, null)
+    setDragSessionId(null)
+  }
 
   const statusGrouped = STATUS_ORDER.map(status => ({
     status,
     config: getStatusConfig(status),
     items: ungrouped.filter(s => s.status === status),
   })).filter(g => g.items.length > 0)
-
-  const addGroup = () => {
-    const newGroup: Group = { name: 'New Group', sessionIds: [], collapsed: false }
-    setGroups([...groups, newGroup])
-    setEditingGroup(groups.length)
-    setEditName('New Group')
-  }
-
-  const renameGroup = (idx: number) => {
-    setEditingGroup(idx)
-    setEditName(groups[idx].name)
-  }
-
-  const submitRename = (idx: number) => {
-    setEditingGroup(null)
-    const name = editName.trim()
-    if (!name) return
-    setGroups(groups.map((g, i) => i === idx ? { ...g, name } : g))
-  }
-
-  const deleteGroup = (idx: number) => {
-    setGroups(groups.filter((_, i) => i !== idx))
-  }
-
-  const toggleCollapse = (idx: number) => {
-    setGroups(groups.map((g, i) => i === idx ? { ...g, collapsed: !g.collapsed } : g))
-  }
-
-  // Drag handlers
-  const handleDragStart = (sessionId: string) => {
-    setDragSessionId(sessionId)
-  }
-
-  const handleDropOnGroup = (groupIdx: number) => {
-    if (dragGroupIdx !== null && dragGroupIdx !== groupIdx) {
-      setGroups(prev => {
-        const next = [...prev]
-        const [moved] = next.splice(dragGroupIdx, 1)
-        next.splice(groupIdx, 0, moved)
-        return next
-      })
-      setDragGroupIdx(null)
-      return
-    }
-    if (!dragSessionId) return
-    setGroups(prev => {
-      const next = prev.map((g, i) => ({
-        ...g,
-        sessionIds: g.sessionIds.filter(id => id !== dragSessionId),
-      }))
-      next[groupIdx] = { ...next[groupIdx], sessionIds: [...next[groupIdx].sessionIds, dragSessionId] }
-      return next
-    })
-    setDragSessionId(null)
-  }
-
-  const handleDropOnUngrouped = () => {
-    if (!dragSessionId) return
-    setGroups(prev => prev.map(g => ({
-      ...g,
-      sessionIds: g.sessionIds.filter(id => id !== dragSessionId),
-    })))
-    setDragSessionId(null)
-  }
-
-  const sessionMap = new Map(sessions.map(s => [s.session_id, s]))
 
   const renderSession = (session: Session) => {
     const config = getStatusConfig(session.status)
@@ -164,7 +150,7 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
         onClick={() => onSelect(session.session_id)}
         onDoubleClick={() => onFocus(session.session_id)}
         draggable
-        onDragStart={() => handleDragStart(session.session_id)}
+        onDragStart={() => setDragSessionId(session.session_id)}
       >
         <div className="sidebar-item-main">
           <span
@@ -185,67 +171,97 @@ export default function Sidebar({ sessions, selectedId, onSelect, onDelete, onFo
     )
   }
 
-  const getGroupBadge = (group: Group) => {
-    let count = 0
-    for (const id of group.sessionIds) {
-      const s = sessionMap.get(id)
-      if (s && ATTENTION_STATUSES.includes(s.status)) count++
-    }
-    return count
+  const renderProject = (project: Project) => {
+    const badge = getProjectBadge(project.id)
+    const sessionCount = getProjectSessionCount(project.id)
+    const isCollapsed = collapsed[project.id]
+    const projectSessions = sessions.filter(s => sessionProjectMap[s.session_id] === project.id)
+
+    return (
+      <div
+        key={project.id}
+        className="sidebar-group"
+        onDragOver={e => e.preventDefault()}
+        onDrop={() => handleDropOnProject(project.id)}
+      >
+        <div
+          className={`sidebar-group-label group-header${project.id === selectedProjectId ? ' selected-project' : ''}`}
+          draggable
+          onDragStart={() => setDragProjectId(project.id)}
+          onDragEnd={() => setDragProjectId(null)}
+        >
+          <span className="group-collapse" onClick={() => toggleCollapse(project.id)}>
+            {isCollapsed ? '▸' : '▾'}
+          </span>
+          {editingProjectId === project.id ? (
+            <input
+              ref={editRef}
+              className="group-name-input"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              onBlur={() => {
+                setEditingProjectId(null)
+                if (editName.trim()) {
+                  // Inline rename via API
+                  fetch(`/api/projects?id=${project.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...project, name: editName.trim() }),
+                  })
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                if (e.key === 'Escape') setEditingProjectId(null)
+              }}
+            />
+          ) : (
+            <span
+              className="group-name"
+              onClick={() => onSelectProject(project.id)}
+              onDoubleClick={() => { setEditingProjectId(project.id); setEditName(project.name) }}
+            >{project.name}</span>
+          )}
+          {badge > 0 && <span className="group-badge">{badge}</span>}
+          <span className="sidebar-group-count">{sessionCount}</span>
+          <div className="project-actions">
+            <button
+              className="group-delete-btn"
+              onClick={e => { e.stopPropagation(); onArchiveProject(project.id) }}
+              title={project.archived ? t('unarchive', locale) : t('archive', locale)}
+            >{project.archived ? '↩' : '📦'}</button>
+            <button
+              className="group-delete-btn"
+              onClick={e => { e.stopPropagation(); onDeleteProject(project.id) }}
+              title="Delete"
+            >×</button>
+          </div>
+        </div>
+        {!isCollapsed && projectSessions.map(renderSession)}
+      </div>
+    )
   }
 
   return (
     <aside className="sidebar" style={{ width }}>
       <div className="sidebar-header">
         <span className="sidebar-title">Sessions</span>
-        <button className="group-add-btn" onClick={addGroup} title="Add group">+</button>
+        <button className="group-add-btn" onClick={onCreateProject} title={t('new_project', locale)}>+</button>
       </div>
       <div className="sidebar-content">
-        {groups.map((group, idx) => {
-          const badge = getGroupBadge(group)
-          return (
+        {activeProjects.map(renderProject)}
+
+        {archivedProjects.length > 0 && (
+          <>
             <div
-              key={idx}
-              className="sidebar-group"
-              onDragOver={e => e.preventDefault()}
-              onDrop={() => handleDropOnGroup(idx)}
+              className="sidebar-archived-toggle"
+              onClick={() => setShowArchived(!showArchived)}
             >
-              <div
-                className="sidebar-group-label group-header"
-                draggable
-                onDragStart={() => setDragGroupIdx(idx)}
-                onDragEnd={() => setDragGroupIdx(null)}
-              >
-                <span className="group-collapse" onClick={() => toggleCollapse(idx)}>
-                  {group.collapsed ? '▸' : '▾'}
-                </span>
-                {editingGroup === idx ? (
-                  <input
-                    ref={editRef}
-                    className="group-name-input"
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    onBlur={() => submitRename(idx)}
-                    onKeyDown={e => { if (e.key === 'Enter') submitRename(idx); if (e.key === 'Escape') setEditingGroup(null) }}
-                  />
-                ) : (
-                  <span className="group-name" onDoubleClick={() => renameGroup(idx)}>{group.name}</span>
-                )}
-                {badge > 0 && <span className="group-badge">{badge}</span>}
-                <span className="sidebar-group-count">{group.sessionIds.length}</span>
-                <button
-                  className="group-delete-btn"
-                  onClick={() => deleteGroup(idx)}
-                  title="Delete group"
-                >×</button>
-              </div>
-              {!group.collapsed && group.sessionIds.map(id => {
-                const s = sessionMap.get(id)
-                return s ? renderSession(s) : null
-              })}
+              {showArchived ? t('hide_archived', locale) : t('show_archived', locale)} ({archivedProjects.length})
             </div>
-          )
-        })}
+            {showArchived && archivedProjects.map(renderProject)}
+          </>
+        )}
 
         <div
           className="sidebar-ungrouped"
