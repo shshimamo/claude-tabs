@@ -11,22 +11,40 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - ステータス別グルーピング
 - セッション名のカスタマイズ
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
-- セッションメモ（localStorage 永続化、リロードしても保持）
-- サイドバーのカスタムグループ（ドラッグ&ドロップ、折りたたみ、アテンションバッジ）
+- セッションメモ（サーバーサイド永続化）
 - サイドバー幅のドラッグリサイズ（localStorage 永続化）
-- 削除時 /exit 送信オプション
+
+### プロジェクト管理
+- プロジェクト作成・アーカイブ・削除
+- セッションのプロジェクトへのドラッグ&ドロップ割り当て
+- プロジェクト内セッションの手動並び替え（ドラッグ&ドロップ）
+- プロジェクト詳細画面（リンクセクション + Markdown メモ）
+- カスタマイズ可能なリンクセクション（PRD / Spec / NotebookLM / Slack 等、追加・削除・リネーム自由）
+- デフォルトリンクセクションの config 設定
+- メモのクリック編集（クリックで編集モード、フォーカスアウトで自動保存）
+- Cmd+S でプロジェクト保存
+
+### 会話管理
+- 会話エントリのサーバーサイド保存（セッション別 JSON ファイル）
+- お気に入りマーク（★ トグル、フィルタ、お気に入り以外の一括削除）
+- 自動トリム時のお気に入り保護
+- `conversation_max_entries` で最大保持数を設定可能
 
 ### ターミナル操作
 - ターミナルフォーカス（iTerm2 / Terminal.app / カスタム対応）
 - ブラウザからターミナルへの入力送信（定型文ボタン + 自由入力）
 - 許可プロンプトの操作（Allow / Allow Always / Deny / Sync待ち）
-- Terminal Preview（ターミナル画面の末尾を表示、idle 以外で5秒間隔自動リフレッシュ）
+- Terminal Preview（ターミナル画面の末尾を表示、idle 以外で自動リフレッシュ）
 - セッション選択時のターミナル自動フォーカス（設定可）
 
 ### 通知・フォーカス
 - デスクトップ通知 + 通知音（ステータス変化時、ブラウザ Notification API）
 - アテンション UI（ヘッダー色変化 + サイドバーパルス + ステータス別背景色）
 - 回答待ち/許可待ち時のブラウザ自動フォーカス（PWA/Chrome 対応、設定可）
+
+### i18n
+- UI 言語切り替え（英語 / 日本語）
+- `locale` 設定で切り替え（デフォルト: `"en"`）
 
 ### Worktree + sbx
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
@@ -77,12 +95,14 @@ claude-tabs/
     └── src/
         ├── main.tsx         # エントリーポイント
         ├── App.tsx          # メインレイアウト、WebSocket 接続
-        ├── Sidebar.tsx      # セッション一覧（ステータス別グループ）
+        ├── Sidebar.tsx      # セッション一覧（プロジェクト別 + ステータス別グループ）
         ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
+        ├── ProjectDetail.tsx # プロジェクト詳細（リンクセクション + メモ）
         ├── WorktreeModal.tsx # Worktree作成モーダル
         ├── SbxRunModal.tsx  # 既存 sbx アタッチモーダル
         ├── DeleteConfirmModal.tsx # セッション削除確認（Worktree/sbx）
         ├── ConfigModal.tsx  # Settings モーダル（config.json 編集）
+        ├── i18n.ts          # 多言語対応（en/ja）
         └── index.css        # Catppuccin ダークテーマ
 ```
 
@@ -95,7 +115,11 @@ claude-tabs/
 ├── sessions/                # セッション状態 JSON（hook が書き込み）
 │   ├── {session_id}.json
 │   └── ...
-└── config.json              # 全設定（定型文 / Worktree / sbx / プラグイン）
+├── conversations/           # 会話エントリ JSON（セッション別）
+│   ├── {session_id}.json
+│   └── ...
+├── projects.json            # プロジェクト + セッション紐づけ + セッション順序
+└── config.json              # 全設定（定型文 / Worktree / sbx / プロジェクト）
 ```
 
 ## 前提ツール
@@ -253,6 +277,9 @@ make install
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
 | `locale`               | 表示カスタマイズ         | UI言語（`"en"` or `"ja"`） | `"en"` |
 | `statuses`             | 表示カスタマイズ         | ステータス別設定（`{ "color": "R, G, B", "opacity": 0.15, "label": "表示名" }`） | 内蔵デフォルト |
+| `conversation_max_entries` | 会話管理           | 会話エントリの最大保持数（お気に入りは除外） | `100` |
+| `project`              | プロジェクト管理         | プロジェクト関連設定（下記参照） | `{}` |
+| `project.default_link_sections` | プロジェクト管理 | 新規プロジェクト作成時のデフォルトリンクセクション | PRD / Spec / NotebookLM / Slack |
 | `focus_terminal_on_select` | フォーカス設定       | セッション選択時にターミナルを自動フォーカス | `false` |
 | `focus_browser_on_attention` | フォーカス設定     | ブラウザ自動フォーカス（下記参照） | `{ "enable": false }` |
 | `browser_app`          | フォーカス設定           | ブラウザのアプリ名（PWA/ショートカット用）。未設定なら Chrome でタブ検索 | — |
@@ -294,6 +321,23 @@ make install
 - `enable`: 有効/無効
 - `statuses`: フォーカス対象のステータス（上記ステータス一覧から指定）。省略時は `["waiting_input", "permission_required"]`
 - `browser_app` でPWA名を指定可能。未設定なら Chrome でタブ検索
+
+### プロジェクト設定
+
+```json
+{
+  "project": {
+    "default_link_sections": [
+      { "label": "PRD" },
+      { "label": "Spec" },
+      { "label": "Asana" },
+      { "label": "Slack" }
+    ]
+  }
+}
+```
+
+未設定時のデフォルト: PRD / Spec / NotebookLM / Slack。プロジェクト作成後は各プロジェクトで自由にセクションの追加・削除・リネームが可能。
 
 ### 定型文カスタマイズ
 

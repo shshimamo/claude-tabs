@@ -45,6 +45,15 @@
     "inactive_24h":        { "color": "69, 71, 90",    "opacity": 0.0 },
     "terminated":          { "color": "69, 71, 90",    "opacity": 0.0,  "label": "終了" }
   },
+  "conversation_max_entries": 100,
+  "project": {
+    "default_link_sections": [
+      { "label": "PRD" },
+      { "label": "Spec" },
+      { "label": "NotebookLM" },
+      { "label": "Slack" }
+    ]
+  },
   "focus_terminal_on_select": false,
   "focus_browser_on_attention": {
     "enable": false,
@@ -52,7 +61,6 @@
   },
   "browser_app": "",
   "screen_lines": 20,
-  "conversation_max_entries": 100,
   "preview_interval": 10,
   "conversation": {
     "height": "70vh",
