@@ -24,9 +24,11 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
   // existing mode
   const [repoFilter, setRepoFilter] = useState('')
   const [selectedRepo, setSelectedRepo] = useState('')
+  const [showRepoList, setShowRepoList] = useState(false)
   // worktree mode
   const [wtRepo, setWtRepo] = useState('')
   const [wtRepoFilter, setWtRepoFilter] = useState('')
+  const [showWtRepoList, setShowWtRepoList] = useState(false)
   const [wtBranch, setWtBranch] = useState('')
   const [wtBase, setWtBase] = useState('')
   const [running, setRunning] = useState(false)
@@ -131,10 +133,12 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
               <input
                 className="modal-input"
                 value={repoFilter}
-                onChange={e => { setRepoFilter(e.target.value); setSelectedRepo('') }}
+                onChange={e => { setRepoFilter(e.target.value); setSelectedRepo(''); setShowRepoList(true) }}
+                onFocus={() => setShowRepoList(true)}
+                onBlur={() => setTimeout(() => setShowRepoList(false), 200)}
                 placeholder="Filter repositories..."
               />
-              {filteredRepos.length > 0 && !selectedRepo && (
+              {filteredRepos.length > 0 && !selectedRepo && showRepoList && (
                 <div className="repo-list">
                   {filteredRepos.map(r => (
                     <div
@@ -155,10 +159,12 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
               <input
                 className="modal-input"
                 value={wtRepoFilter}
-                onChange={e => { setWtRepoFilter(e.target.value); setWtRepo('') }}
+                onChange={e => { setWtRepoFilter(e.target.value); setWtRepo(''); setShowWtRepoList(true) }}
+                onFocus={() => setShowWtRepoList(true)}
+                onBlur={() => setTimeout(() => setShowWtRepoList(false), 200)}
                 placeholder="Filter repositories..."
               />
-              {filteredWtRepos.length > 0 && !wtRepo && (
+              {filteredWtRepos.length > 0 && !wtRepo && showWtRepoList && (
                 <div className="repo-list">
                   {filteredWtRepos.map(r => (
                     <div
