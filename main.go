@@ -789,7 +789,10 @@ func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 
 	// Send text + Enter via AppleScript
 	ts := getTerminalScripts(loadConfig())
-	escapedText := strings.ReplaceAll(text, `"`, `\"`)
+	escapedText := strings.ReplaceAll(text, `\`, `\\`)
+	escapedText = strings.ReplaceAll(escapedText, `"`, `\"`)
+	escapedText = strings.ReplaceAll(escapedText, "\n", `" & return & "`)
+	escapedText = strings.ReplaceAll(escapedText, "\r", "")
 	script := strings.ReplaceAll(strings.ReplaceAll(ts.Input, "{{TTY}}", tty), "{{TEXT}}", escapedText)
 
 	result, err := exec.Command("osascript", "-e", script).Output()
