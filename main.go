@@ -1013,7 +1013,7 @@ func sessionWorktreeInfo(cwd string) (wtPath, sbxName string) {
 		return
 	}
 	cfg := loadConfig()
-	wtBase := cfg.WorktreeBase
+	wtBase := cfg.Worktree.Base
 	if wtBase == "" {
 		ghqRoot, err := exec.Command("ghq", "root").Output()
 		if err != nil {
@@ -1167,22 +1167,30 @@ type FocusBrowserConfig struct {
 	Statuses []string `json:"statuses"`
 }
 
+type SbxConfig struct {
+	Template       string         `json:"template"`
+	DefaultMounts  []string       `json:"default_mounts"`
+	PostCreateCmds [][]string     `json:"post_create_cmds"`
+	Kits           []string       `json:"kits"`
+	Plugins        []PluginConfig `json:"plugins"`
+	CloneBase      string         `json:"clone_base"`
+	RepositoryBase string         `json:"repository_base"`
+}
+
+type WorktreeConfig struct {
+	Base string `json:"base"`
+}
+
 type Config struct {
-	Presets           []Preset                   `json:"presets"`
-	WorktreeBase      string                     `json:"worktree_base"`
-	SbxTemplate       string                     `json:"sbx_template"`
-	SbxDefaultMounts  []string                   `json:"sbx_default_mounts"`
-	SbxPostCreateCmds [][]string                 `json:"sbx_post_create_cmds"`
-	SbxKits           []string                   `json:"sbx_kits"`
-	Plugins           []PluginConfig             `json:"plugins"`
-	Terminal          string                     `json:"terminal"`
-	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
-	CloneBase         string                     `json:"clone_base"`
-	RepositoryBase    string                     `json:"repository_base"`
-	ScreenLines       int                        `json:"screen_lines"`
-	Port              int                        `json:"port"`
-	BrowserApp              string                     `json:"browser_app"`
-	FocusBrowserOnAttention  *FocusBrowserConfig          `json:"focus_browser_on_attention"`
+	Presets                  []Preset                   `json:"presets"`
+	Worktree                 WorktreeConfig             `json:"worktree"`
+	Sbx                      SbxConfig                  `json:"sbx"`
+	Terminal                 string                     `json:"terminal"`
+	TerminalPresets          map[string]TerminalScripts `json:"terminal_presets"`
+	ScreenLines              int                        `json:"screen_lines"`
+	Port                     int                        `json:"port"`
+	BrowserApp               string                     `json:"browser_app"`
+	FocusBrowserOnAttention  *FocusBrowserConfig        `json:"focus_browser_on_attention"`
 	ListenAddress            string                     `json:"listen_address"`
 	ConversationMaxEntries   int                        `json:"conversation_max_entries"`
 	Project                  ProjectConfig              `json:"project"`
@@ -1589,8 +1597,10 @@ func configFilePath() string {
 
 func loadConfig() Config {
 	cfg := Config{
-		Presets:     defaultPresets,
-		SbxTemplate: "my-sbx:latest",
+		Presets: defaultPresets,
+		Sbx: SbxConfig{
+			Template: "my-sbx:latest",
+		},
 	}
 	data, err := os.ReadFile(configFilePath())
 	if err != nil {
@@ -1600,22 +1610,22 @@ func loadConfig() Config {
 	if len(cfg.Presets) == 0 {
 		cfg.Presets = defaultPresets
 	}
-	if cfg.SbxTemplate == "" {
-		cfg.SbxTemplate = "my-sbx:latest"
+	if cfg.Sbx.Template == "" {
+		cfg.Sbx.Template = "my-sbx:latest"
 	}
-	cfg.WorktreeBase = expandHome(cfg.WorktreeBase)
-	for i := range cfg.SbxPostCreateCmds {
-		for j := range cfg.SbxPostCreateCmds[i] {
-			cfg.SbxPostCreateCmds[i][j] = expandHome(cfg.SbxPostCreateCmds[i][j])
+	cfg.Worktree.Base = expandHome(cfg.Worktree.Base)
+	for i := range cfg.Sbx.PostCreateCmds {
+		for j := range cfg.Sbx.PostCreateCmds[i] {
+			cfg.Sbx.PostCreateCmds[i][j] = expandHome(cfg.Sbx.PostCreateCmds[i][j])
 		}
 	}
-	for i := range cfg.SbxDefaultMounts {
-		cfg.SbxDefaultMounts[i] = expandHome(cfg.SbxDefaultMounts[i])
+	for i := range cfg.Sbx.DefaultMounts {
+		cfg.Sbx.DefaultMounts[i] = expandHome(cfg.Sbx.DefaultMounts[i])
 	}
-	for i := range cfg.Plugins {
-		cfg.Plugins[i].Source = expandHome(cfg.Plugins[i].Source)
+	for i := range cfg.Sbx.Plugins {
+		cfg.Sbx.Plugins[i].Source = expandHome(cfg.Sbx.Plugins[i].Source)
 	}
-	cfg.RepositoryBase = expandHome(cfg.RepositoryBase)
+	cfg.Sbx.RepositoryBase = expandHome(cfg.Sbx.RepositoryBase)
 	return cfg
 }
 
@@ -1838,7 +1848,7 @@ func handleSbxBuildTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := loadConfig()
-	tag := cfg.SbxTemplate
+	tag := cfg.Sbx.Template
 	if tag == "" {
 		tag = "my-sbx:latest"
 	}
@@ -1886,7 +1896,7 @@ func handleGitClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := loadConfig()
-	cloneBase := cfg.CloneBase
+	cloneBase := cfg.Sbx.CloneBase
 	if cloneBase == "" {
 		cloneBase = "~/src"
 	}
@@ -2008,7 +2018,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	}
 
 	// worktree base
-	wtBase := cfg.WorktreeBase
+	wtBase := cfg.Worktree.Base
 	if wtBase == "" {
 		home, _ := os.UserHomeDir()
 		wtBase = filepath.Join(home, "worktrees")
@@ -2062,9 +2072,9 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	// sbx create
 	claudeTabsDir := expandHome("~/.claude-tabs")
 	paths := []string{wtPath, claudeTabsDir}
-	paths = append(paths, cfg.SbxDefaultMounts...)
-	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.SbxTemplate}
-	for _, kit := range cfg.SbxKits {
+	paths = append(paths, cfg.Sbx.DefaultMounts...)
+	sbxArgs := []string{"create", "--name", sbxName, "-t", cfg.Sbx.Template}
+	for _, kit := range cfg.Sbx.Kits {
 		sbxArgs = append(sbxArgs, "--kit", kit)
 	}
 	sbxArgs = append(sbxArgs, "claude")
@@ -2077,7 +2087,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
 
 	// setup commands (best effort)
-	for _, cmd := range cfg.SbxPostCreateCmds {
+	for _, cmd := range cfg.Sbx.PostCreateCmds {
 		if len(cmd) > 0 {
 			args := append([]string{"exec", sbxName}, cmd...)
 			exec.Command("sbx", args...).Run()
@@ -2085,7 +2095,7 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 	}
 
 	// plugins install
-	for _, pc := range cfg.Plugins {
+	for _, pc := range cfg.Sbx.Plugins {
 		exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pc.Source).Run()
 		if len(pc.Plugins) == 1 && pc.Plugins[0] == "auto" {
 			marketplaceName := ""
@@ -2168,7 +2178,7 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 	cfg := loadConfig()
 
 	// clone_base をメインのマウントパスに
-	cloneBase := cfg.CloneBase
+	cloneBase := cfg.Sbx.CloneBase
 	if cloneBase == "" {
 		cloneBase = "~/src"
 	}
@@ -2176,15 +2186,15 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 
 	claudeTabsDir := expandHome("~/.claude-tabs")
 	paths := []string{cloneBase, claudeTabsDir}
-	paths = append(paths, cfg.SbxDefaultMounts...)
+	paths = append(paths, cfg.Sbx.DefaultMounts...)
 
-	template := cfg.SbxTemplate
+	template := cfg.Sbx.Template
 	if template == "" {
 		template = "my-sbx:latest"
 	}
 
 	sbxArgs := []string{"create", "--name", sbxName, "-t", template}
-	for _, kit := range cfg.SbxKits {
+	for _, kit := range cfg.Sbx.Kits {
 		sbxArgs = append(sbxArgs, "--kit", kit)
 	}
 	sbxArgs = append(sbxArgs, "claude")
@@ -2199,7 +2209,7 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
 
 	// post-create commands
-	for _, cmd := range cfg.SbxPostCreateCmds {
+	for _, cmd := range cfg.Sbx.PostCreateCmds {
 		if len(cmd) > 0 {
 			args := append([]string{"exec", sbxName}, cmd...)
 			exec.Command("sbx", args...).Run()
@@ -2207,7 +2217,7 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// plugins install
-	for _, pc := range cfg.Plugins {
+	for _, pc := range cfg.Sbx.Plugins {
 		exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pc.Source).Run()
 		if len(pc.Plugins) == 1 && pc.Plugins[0] == "auto" {
 			marketplaceName := ""
@@ -2277,13 +2287,13 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 	if sbxName != "" {
 		// sbx内のリポジトリを動的に取得（config記載のbase配下のみ）
 		var bases []string
-		if cfg.RepositoryBase != "" {
-			bases = append(bases, expandHome(cfg.RepositoryBase))
+		if cfg.Sbx.RepositoryBase != "" {
+			bases = append(bases, expandHome(cfg.Sbx.RepositoryBase))
 		}
-		if cfg.WorktreeBase != "" {
-			bases = append(bases, expandHome(cfg.WorktreeBase))
+		if cfg.Worktree.Base != "" {
+			bases = append(bases, expandHome(cfg.Worktree.Base))
 		}
-		cloneBase := cfg.CloneBase
+		cloneBase := cfg.Sbx.CloneBase
 		if cloneBase == "" {
 			cloneBase = "~/src"
 		}
@@ -2310,7 +2320,7 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ホスト側スキャン（従来互換）
-	if cfg.RepositoryBase == "" {
+	if cfg.Sbx.RepositoryBase == "" {
 		json.NewEncoder(w).Encode([]string{})
 		return
 	}
@@ -2335,8 +2345,8 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 	}
-	scanGitRepos(cfg.RepositoryBase, 4)
-	scanGitRepos(cfg.WorktreeBase, 2)
+	scanGitRepos(cfg.Sbx.RepositoryBase, 4)
+	scanGitRepos(cfg.Worktree.Base, 2)
 	if repos == nil {
 		repos = []string{}
 	}
@@ -2362,9 +2372,9 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 		fullPath = repoPath
 	} else {
 		// 相対パス（従来互換）
-		fullPath = filepath.Join(cfg.RepositoryBase, repoPath)
-		if cfg.WorktreeBase != "" {
-			wtPath := filepath.Join(cfg.WorktreeBase, repoPath)
+		fullPath = filepath.Join(cfg.Sbx.RepositoryBase, repoPath)
+		if cfg.Worktree.Base != "" {
+			wtPath := filepath.Join(cfg.Worktree.Base, repoPath)
 			if _, err := os.Stat(wtPath); err == nil {
 				fullPath = wtPath
 			}
@@ -2400,8 +2410,8 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 
 	// repository_base からリポジトリ検索
 	var repoPath string
-	if cfg.RepositoryBase != "" {
-		filepath.WalkDir(cfg.RepositoryBase, func(path string, d fs.DirEntry, walkErr error) error {
+	if cfg.Sbx.RepositoryBase != "" {
+		filepath.WalkDir(cfg.Sbx.RepositoryBase, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return filepath.SkipDir
 			}
@@ -2413,7 +2423,7 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 				}
 				return filepath.SkipDir
 			}
-			rel, _ := filepath.Rel(cfg.RepositoryBase, path)
+			rel, _ := filepath.Rel(cfg.Sbx.RepositoryBase, path)
 			if strings.Count(rel, string(filepath.Separator)) >= 4 {
 				return filepath.SkipDir
 			}
@@ -2425,7 +2435,7 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 		return
 	}
 
-	wtBase := cfg.WorktreeBase
+	wtBase := cfg.Worktree.Base
 	if wtBase == "" {
 		home, _ := os.UserHomeDir()
 		wtBase = filepath.Join(home, "worktrees")

@@ -151,9 +151,8 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
     fetch('/api/presets').then(r => r.json()).then(setPresets).catch(() => {})
     fetch('/api/config').then(r => r.json()).then((cfg: any) => {
       const bases: string[] = []
-      for (const key of ['repository_base', 'worktree_base']) {
-        if (cfg[key]) bases.push(cfg[key])
-      }
+      if (cfg.sbx?.repository_base) bases.push(cfg.sbx.repository_base)
+      if (cfg.worktree?.base) bases.push(cfg.worktree.base)
       setCwdBases(bases)
       if (cfg.conversation?.height) setConversationHeight(cfg.conversation.height)
       if (cfg.conversation?.content_height) setContentHeight(cfg.conversation.content_height)

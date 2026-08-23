@@ -4,36 +4,40 @@
     { "label": "Commit", "text": "commit して" },
     { "label": "Commit & Push", "text": "commit して push して" }
   ],
-  "worktree_base": "",
-  "sbx_template": "my-sbx:latest",
-  "sbx_default_mounts": [
-    "~/dotfiles:ro",
-    "~/claude-tabs:ro"
-  ],
-  "sbx_post_create_cmds": [
-    ["setup-dotfiles"],
-    ["claude", "mcp", "add", "my-server", "--", "npx", "my-mcp-server"]
-  ],
-  "sbx_kits": [
-    "./my-kit/",
-    "ghcr.io/myorg/my-kit:1.0"
-  ],
-  "plugins": [
-    {
-      "source": "~/claude-plugins",
-      "plugins": ["auto"]
-    },
-    {
-      "source": "user/repo",
-      "plugins": ["plugin-a", "plugin-b"]
-    },
-    {
-      "source": "https://github.com/someone/plugins#v1.0.0",
-      "plugins": ["plugin-x"]
-    }
-  ],
-  "clone_base": "~/src",
-  "repository_base": "~/devel/src",
+  "worktree": {
+    "base": ""
+  },
+  "sbx": {
+    "template": "my-sbx:latest",
+    "default_mounts": [
+      "~/dotfiles:ro",
+      "~/claude-tabs:ro"
+    ],
+    "post_create_cmds": [
+      ["setup-dotfiles"],
+      ["claude", "mcp", "add", "my-server", "--", "npx", "my-mcp-server"]
+    ],
+    "kits": [
+      "./my-kit/",
+      "ghcr.io/myorg/my-kit:1.0"
+    ],
+    "plugins": [
+      {
+        "source": "~/claude-plugins",
+        "plugins": ["auto"]
+      },
+      {
+        "source": "user/repo",
+        "plugins": ["plugin-a", "plugin-b"]
+      },
+      {
+        "source": "https://github.com/someone/plugins#v1.0.0",
+        "plugins": ["plugin-x"]
+      }
+    ],
+    "clone_base": "~/src",
+    "repository_base": "~/devel/src"
+  },
   "locale": "en",
   "statuses": {
     "ai_working":          { "color": "137, 180, 250", "opacity": 0.15, "label": "AI作業中" },

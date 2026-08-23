@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react'
 import { t, type Locale } from './i18n'
 
 type Config = {
-  worktree_base?: string
-  sbx_template?: string
-  sbx_default_mounts?: string[]
-  sbx_kits?: string[]
-  sbx_post_create_cmds?: string[][]
-  plugins?: { source: string; plugins: string[] }[]
+  worktree?: { base?: string }
+  sbx?: {
+    template?: string
+    default_mounts?: string[]
+    kits?: string[]
+    post_create_cmds?: string[][]
+    plugins?: { source: string; plugins: string[] }[]
+  }
 }
 
 type Props = {
@@ -49,21 +51,21 @@ export default function WorktreeModal({ onClose, locale }: Props) {
   const r = repo.trim() || '<repo>'
   const b = branch.trim() || '<branch>'
   const sbxName = `wt-${r}-${b}`
-  const wtBase = cfg.worktree_base || '~/worktrees'
-  const template = cfg.sbx_template || 'my-sbx:latest'
+  const wtBase = cfg.worktree?.base || '~/worktrees'
+  const template = cfg.sbx?.template || 'my-sbx:latest'
   const wtPath = `${wtBase}/${r}/${b}`
 
   const steps = useMemo(() => {
     const s: string[] = []
     s.push(`git worktree add ${wtPath}${baseBranch.trim() ? ` (base: ${baseBranch.trim()})` : ''}`)
-    const mounts = [wtPath, '~/.claude-tabs', ...(cfg.sbx_default_mounts || [])]
-    const kits = (cfg.sbx_kits || []).map(k => `--kit ${k}`).join(' ')
+    const mounts = [wtPath, '~/.claude-tabs', ...(cfg.sbx?.default_mounts || [])]
+    const kits = (cfg.sbx?.kits || []).map(k => `--kit ${k}`).join(' ')
     s.push(`sbx create --name ${sbxName} -t ${template}${kits ? ' ' + kits : ''} claude ${mounts.join(' ')}`)
     s.push(`sbx exec ${sbxName} ln -sf <host>/.claude-tabs ~/.claude-tabs`)
-    for (const cmd of cfg.sbx_post_create_cmds || []) {
+    for (const cmd of cfg.sbx?.post_create_cmds || []) {
       s.push(`sbx exec ${sbxName} ${cmd.join(' ')}`)
     }
-    for (const pc of cfg.plugins || []) {
+    for (const pc of cfg.sbx?.plugins || []) {
       s.push(`sbx exec ${sbxName} claude plugins marketplace add ${pc.source}`)
       for (const p of pc.plugins) {
         if (p === 'auto') {

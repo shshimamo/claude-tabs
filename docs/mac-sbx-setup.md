@@ -94,22 +94,24 @@ sbx 内で Claude Code を使う場合、hooks は Linux 用バイナリ（`clau
 
 ```json
 {
-  "clone_base": "~/src",
-  "sbx_template": "my-sbx:latest",
-  "sbx_default_mounts": [
-    "~/dotfiles:ro"
-  ],
-  "sbx_post_create_cmds": [],
+  "sbx": {
+    "clone_base": "~/src",
+    "template": "my-sbx:latest",
+    "default_mounts": [
+      "~/dotfiles:ro"
+    ],
+    "post_create_cmds": []
+  },
   "terminal": "iterm2"
 }
 ```
 
 | 設定 | 説明 |
 |------|------|
-| `clone_base` | Git Clone 先のベースディレクトリ。Create sbx 時に自動マウントされる |
-| `sbx_template` | Create sbx で使用するテンプレート名 |
-| `sbx_default_mounts` | sbx 作成時にマウントするディレクトリ（`clone_base` は自動追加） |
-| `sbx_post_create_cmds` | sbx 作成後に実行するコマンド |
+| `sbx.clone_base` | Git Clone 先のベースディレクトリ。Create sbx 時に自動マウントされる |
+| `sbx.template` | Create sbx で使用するテンプレート名 |
+| `sbx.default_mounts` | sbx 作成時にマウントするディレクトリ（`clone_base` は自動追加） |
+| `sbx.post_create_cmds` | sbx 作成後に実行するコマンド |
 
 ## 5. Dockerfile テンプレートの準備（任意）
 

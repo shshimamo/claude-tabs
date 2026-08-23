@@ -7,16 +7,16 @@
 | キー                     | カテゴリ              |  説明                                                      | デフォルト |
 |------------------------|-------------------|----------------------------------------------------------|-------|
 | `presets`              | 定型文カスタマイズ | ブラウザ UI の定型文ボタンをカスタマイズ | Yes / Commit / Commit & Push |
-| `worktree_base`        | Worktree           | worktree 保存先 | `~/worktrees` |
-| `sbx_template`         | sbx                | sbx テンプレート | `my-sbx:latest` |
-| `sbx_default_mounts`   | sbx                | sbx デフォルトマウント（`~` 展開可） | `[]` |
-| `sbx_post_create_cmds` | sbx                | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） | `[]` |
-| `sbx_kits`             | sbx                | sbx 作成時に適用する kit（ディレクトリ / ZIP / OCI） | `[]` |
-| `plugins`              | sbx                | プラグイン設定の配列 | `[]` |
-| `plugins[].source`     | sbx                | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
-| `plugins[].plugins`    | sbx                | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
-| `clone_base`           | sbx                | `git clone` 先 / sbx マウントのベースディレクトリ | `~/src` |
-| `repository_base`      | sbx                | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
+| `worktree.base`            | Worktree | worktree 保存先 | `~/worktrees` |
+| `sbx.template`             | sbx      | sbx テンプレート | `my-sbx:latest` |
+| `sbx.default_mounts`       | sbx      | sbx デフォルトマウント（`~` 展開可） | `[]` |
+| `sbx.post_create_cmds`     | sbx      | sbx 作成後に順次実行するコマンド群（`[["cmd", "arg"], ...]` 形式） | `[]` |
+| `sbx.kits`                 | sbx      | sbx 作成時に適用する kit（ディレクトリ / ZIP / OCI） | `[]` |
+| `sbx.plugins`              | sbx      | プラグイン設定の配列 | `[]` |
+| `sbx.plugins[].source`     | sbx      | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
+| `sbx.plugins[].plugins`    | sbx      | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
+| `sbx.clone_base`           | sbx      | `git clone` 先 / sbx マウントのベースディレクトリ | `~/src` |
+| `sbx.repository_base`      | sbx      | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
 | `locale`               | 表示カスタマイズ         | UI言語（`"en"` or `"ja"`） | `"en"` |
 | `statuses`             | 表示カスタマイズ         | ステータス別設定（`{ "color": "R, G, B", "opacity": 0.15, "label": "表示名" }`） | 内蔵デフォルト |
 | `conversation_max_entries` | 会話管理           | 会話エントリの最大保持数（お気に入りは除外） | `100` |
