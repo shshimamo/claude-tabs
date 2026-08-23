@@ -21,8 +21,9 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 | | Terminal Preview（ターミナル画面の末尾表示、自動リフレッシュ） |
 | 通知・フォーカス | デスクトップ通知 + 通知音、アテンション UI |
 | | 回答待ち/許可待ち時のブラウザ自動フォーカス（PWA 対応） |
-| Git Clone | GUI からリポジトリをクローン（`sbx.clone_base` に保存） |
-| sbx 管理 | Create sbx / Attach sbx / Dockerfile テンプレート編集・ビルド |
+| Git 操作 | GUI からリポジトリをクローン（`sbx.clone_base` に保存） |
+| | Checkout & Pull（ブランチ切替 + 最新取得） |
+| sbx 管理 | Manage sbx（作成・削除）/ Attach sbx / Dockerfile テンプレート編集・ビルド |
 | | Attach 時の Worktree 作成、プロジェクト同時作成、削除時の sbx 同時削除 |
 | | Worktree 作成 CLI（`worktree create`）、[Mac + sbx セットアップガイド](setups/mac-sbx/) |
 | 設定・表示 | 会話履歴表示、定型文カスタマイズ、Settings モーダル |
@@ -47,6 +48,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 ```
 claude-tabs/
 ├── main.go                  # Go サーバー / hook ハンドラー / クライアント
+├── terminals.go             # ターミナルプリセット定義（iTerm2 / Terminal.app）
 ├── go.mod
 ├── go.sum
 ├── Makefile
@@ -64,7 +66,8 @@ claude-tabs/
         ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
         ├── ProjectDetail.tsx # プロジェクト詳細（リンクセクション + メモ）
         ├── SbxRunModal.tsx  # sbx アタッチモーダル（Worktree 作成含む）
-        ├── CreateSbxModal.tsx # sbx 作成モーダル
+        ├── ManageSbxModal.tsx # sbx 管理モーダル（作成・削除）
+        ├── CheckoutModal.tsx # Checkout & Pull モーダル
         ├── CloneModal.tsx   # Git clone モーダル
         ├── DockerfileModal.tsx # Dockerfile テンプレート編集モーダル
         ├── DeleteConfirmModal.tsx # セッション削除確認（Worktree/sbx）
