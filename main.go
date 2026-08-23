@@ -2362,6 +2362,26 @@ func handleSbxList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(names)
 }
 
+func handleSbxDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	sbxName := r.URL.Query().Get("name")
+	if sbxName == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "name is required"})
+		return
+	}
+	if out, err := exec.Command("sbx", "rm", "-f", sbxName).CombinedOutput(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "sbx rm failed: " + string(out)})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Deleted " + sbxName})
+}
+
 func handleRepoList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -2686,6 +2706,7 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/dockerfile", handleSbxDockerfile)
 	mux.HandleFunc("/api/sbx/build-template", handleSbxBuildTemplate)
 	mux.HandleFunc("/api/sbx/list", handleSbxList)
+	mux.HandleFunc("/api/sbx/delete", handleSbxDelete)
 	mux.HandleFunc("/api/sbx/repos", handleRepoList)
 	mux.HandleFunc("/api/sbx/branches", handleSbxBranches)
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)

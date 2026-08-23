@@ -7,7 +7,7 @@ import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
 import SbxRunModal from './SbxRunModal'
 import CloneModal from './CloneModal'
-import CreateSbxModal from './CreateSbxModal'
+import ManageSbxModal from './ManageSbxModal'
 import DockerfileModal from './DockerfileModal'
 import CheckoutModal from './CheckoutModal'
 import { notifyLabel, t, type Locale } from './i18n'
@@ -361,7 +361,7 @@ export default function App() {
 
   const [sbxRunOpen, setSbxRunOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
-  const [createSbxOpen, setCreateSbxOpen] = useState(false)
+  const [manageSbxOpen, setManageSbxOpen] = useState(false)
   const [dockerfileOpen, setDockerfileOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
@@ -387,14 +387,14 @@ export default function App() {
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
         <button className="action-btn" onClick={() => setCloneOpen(true)}>Clone</button>
         <button className="action-btn" onClick={() => setCheckoutOpen(true)}>Checkout</button>
-        <button className="action-btn new-wt-btn" onClick={() => setCreateSbxOpen(true)}>+ Create sbx</button>
+        <button className="action-btn" onClick={() => setManageSbxOpen(true)}>Manage sbx</button>
         <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
         <button className="action-btn" onClick={() => setDockerfileOpen(true)}>Dockerfile</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {cloneOpen && <CloneModal onClose={() => setCloneOpen(false)} />}
       {checkoutOpen && <CheckoutModal onClose={() => setCheckoutOpen(false)} />}
-      {createSbxOpen && <CreateSbxModal onClose={() => setCreateSbxOpen(false)} />}
+      {manageSbxOpen && <ManageSbxModal onClose={() => setManageSbxOpen(false)} />}
       {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} onCreateProject={handleCreateProjectWithLinks} />}
       {dockerfileOpen && <DockerfileModal onClose={() => setDockerfileOpen(false)} />}
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
