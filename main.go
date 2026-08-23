@@ -2498,10 +2498,18 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 
 	cfg := loadConfig()
 
-	// repository_base からリポジトリ検索
+	// repository_base, clone_base からリポジトリ検索
 	var repoPath string
+	searchBases := []string{}
 	if cfg.Sbx.RepositoryBase != "" {
-		filepath.WalkDir(cfg.Sbx.RepositoryBase, func(path string, d fs.DirEntry, walkErr error) error {
+		searchBases = append(searchBases, cfg.Sbx.RepositoryBase)
+	}
+	searchBases = append(searchBases, getCloneBase())
+	for _, base := range searchBases {
+		if repoPath != "" {
+			break
+		}
+		filepath.WalkDir(base, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return filepath.SkipDir
 			}
@@ -2513,7 +2521,7 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 				}
 				return filepath.SkipDir
 			}
-			rel, _ := filepath.Rel(cfg.Sbx.RepositoryBase, path)
+			rel, _ := filepath.Rel(base, path)
 			if strings.Count(rel, string(filepath.Separator)) >= 4 {
 				return filepath.SkipDir
 			}
