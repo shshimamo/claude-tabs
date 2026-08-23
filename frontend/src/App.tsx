@@ -3,7 +3,6 @@ import Sidebar from './Sidebar'
 import SessionDetail from './SessionDetail'
 import ProjectDetail from './ProjectDetail'
 import type { Project } from './ProjectDetail'
-import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
 import SbxRunModal from './SbxRunModal'
@@ -359,7 +358,6 @@ export default function App() {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  const [wtModalOpen, setWtModalOpen] = useState(false)
   const [sbxRunOpen, setSbxRunOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
   const [createSbxOpen, setCreateSbxOpen] = useState(false)
@@ -388,11 +386,9 @@ export default function App() {
         <button className="action-btn" onClick={() => setCloneOpen(true)}>Clone</button>
         <button className="action-btn new-wt-btn" onClick={() => setCreateSbxOpen(true)}>+ Create sbx</button>
         <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
-        <button className="action-btn" onClick={() => setWtModalOpen(true)}>+ Worktree</button>
         <button className="action-btn" onClick={() => setDockerfileOpen(true)}>Dockerfile</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
-      {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} locale={locale} />}
       {cloneOpen && <CloneModal onClose={() => setCloneOpen(false)} />}
       {createSbxOpen && <CreateSbxModal onClose={() => setCreateSbxOpen(false)} />}
       {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} onCreateProject={handleCreateProjectWithLinks} />}

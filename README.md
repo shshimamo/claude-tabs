@@ -23,10 +23,8 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 | | 回答待ち/許可待ち時のブラウザ自動フォーカス（PWA 対応） |
 | Git Clone | GUI からリポジトリをクローン（`sbx.clone_base` に保存） |
 | sbx 管理 | Create sbx / Attach sbx / Dockerfile テンプレート編集・ビルド |
-| | Attach 時のプロジェクト同時作成、削除時の sbx 同時削除 |
-| | [Mac + sbx 環境セットアップガイド](docs/mac-sbx-setup.md) |
-| Worktree + sbx | Worktree + sbx + Claude 自動起動（Web UI / CLI） |
-| | Base Branch 指定、PR リンクからブランチ自動解決 |
+| | Attach 時の Worktree 作成、プロジェクト同時作成、削除時の sbx 同時削除 |
+| | Worktree 作成 CLI（`worktree create`）、[Mac + sbx セットアップガイド](docs/mac-sbx-setup.md) |
 | 設定・表示 | 会話履歴表示、定型文カスタマイズ、Settings モーダル |
 | i18n | UI 言語切り替え（英語 / 日本語） |
 
@@ -65,8 +63,7 @@ claude-tabs/
         ├── Sidebar.tsx      # セッション一覧（プロジェクト別 + ステータス別グループ）
         ├── SessionDetail.tsx # セッション詳細、入力送信、許可操作
         ├── ProjectDetail.tsx # プロジェクト詳細（リンクセクション + メモ）
-        ├── WorktreeModal.tsx # Worktree作成モーダル
-        ├── SbxRunModal.tsx  # 既存 sbx アタッチモーダル
+        ├── SbxRunModal.tsx  # sbx アタッチモーダル（Worktree 作成含む）
         ├── CreateSbxModal.tsx # sbx 作成モーダル
         ├── CloneModal.tsx   # Git clone モーダル
         ├── DockerfileModal.tsx # Dockerfile テンプレート編集モーダル

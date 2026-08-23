@@ -97,7 +97,7 @@
 
 ## Worktree + sbx
 
-Web UI の「+ Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
+Attach sbx の「New worktree」モードまたは CLI（`worktree create`）から、worktree 作成 + sbx アタッチ + Claude 自動起動が可能。
 
 ### sbx 側の必須セットアップ
 
