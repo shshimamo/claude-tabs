@@ -38,7 +38,17 @@ make restart
 make install-hook-linux
 ```
 
-## 3. config.json の設定
+## 3. sbx-setup.sh のプレースホルダー置換
+
+`sbx-setup.sh` 内の `{CLAUDE_TABS_PATH}` を実際のパスに置換する。
+
+```sh
+sed -i '' "s|{CLAUDE_TABS_PATH}|$HOME/src/claude-tabs|g" setups/mac-sbx/sbx-setup.sh
+```
+
+> `~/src` 以外に clone した場合は適宜パスを変更。
+
+## 4. config.json の設定
 
 ```sh
 mkdir -p ~/.claude-tabs
@@ -56,7 +66,7 @@ cp setups/mac-sbx/config.json ~/.claude-tabs/config.json
 
 `clone_base`（`~/src`）は sbx に自動マウントされるため、`~/src/claude-tabs/setups/mac-sbx/sbx-setup.sh` が sbx 内から参照可能。sbx 作成時に hooks（Linux 用）が自動設定される。
 
-## 4. sbx テンプレートのビルド（初回のみ）
+## 5. sbx テンプレートのビルド（初回のみ）
 
 1. ブラウザで claude-tabs を開く（`http://localhost:6277`）
 2. ヘッダーの **Dockerfile** ボタンをクリック
@@ -72,7 +82,7 @@ sbx template load <tmpfile>
 
 テンプレートを変更したい場合は Dockerfile を編集して再度 Build するだけ。
 
-## 5. 使い方
+## 6. 使い方
 
 ### 基本的な流れ
 

@@ -1,32 +1,11 @@
 #!/bin/bash
-# sbx セットアップスクリプトの参考例
-#
-# 使い方:
-#   1. このファイルをコピーして自分の環境に合わせて編集
-#   2. sbx のマウントパスに含める (sbx_default_mounts 等)
-#   3. config.json で設定:
-#      "sbx_post_create_cmds": [["/path/to/sbx-setup.sh"]]
-
-# ------------------------
-# --- dotfiles の設定例 ---
-# ------------------------
-
-# sbx_default_mounts で dotfiles をマウントしておく
-DOTFILES="$HOME/dotfiles"
-
-if [ -d "$DOTFILES" ]; then
-  # --- dotfiles リンク ---
-  ln -sf "$DOTFILES/.zshrc" ~/.zshrc
-fi
-
-# -------------------------------------------
-# --- Claude Code hooks (Linux 用) の設定例 ---
-# -------------------------------------------
+# ------------------------------------------
+# --- Claude Code hooks (Linux 用) の設定 ---
+# ------------------------------------------
 
 # ホスト用 hooks を削除して Linux 用に差し替える（jq 必要）
 if command -v jq >/dev/null; then
-  # sbx_default_mounts で claude-tabs をマウントしておく
-  HOOKS_JSON="$HOME/claude-tabs/hooks-setup-linux.json"
+  HOOKS_JSON="{CLAUDE_TABS_PATH}/hooks-setup-linux.json"
   if [ -f "$HOOKS_JSON" ]; then
     # ホスト用 claude-tabs hooks があれば削除
     jq '
