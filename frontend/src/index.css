@@ -1239,3 +1239,42 @@ body {
 .project-memo-preview {
   cursor: text;
 }
+
+/* Checkout Modal */
+.checkout-repo-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+}
+.checkout-repo-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #313244;
+}
+.checkout-repo-item:last-child { border-bottom: none; }
+.checkout-repo-item:hover { background: #313244; }
+.checkout-repo-item.selected { background: #45475a; }
+.checkout-repo-name { font-weight: 600; }
+.checkout-repo-branch { color: #a6adc8; font-size: 0.85em; }
+.checkout-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 0 0 6px 6px;
+  z-index: 10;
+}
+.checkout-suggestion-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.checkout-suggestion-item:hover { background: #313244; }

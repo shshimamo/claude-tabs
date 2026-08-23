@@ -1804,6 +1804,138 @@ func handleGitClone(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Cloned to " + dest, "path": dest})
 }
 
+func getCloneBase() string {
+	cfg := loadConfig()
+	cloneBase := cfg.Sbx.CloneBase
+	if cloneBase == "" {
+		cloneBase = "~/src"
+	}
+	return expandHome(cloneBase)
+}
+
+func handleRepoListWithBranch(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	cloneBase := getCloneBase()
+
+	entries, err := os.ReadDir(cloneBase)
+	if err != nil {
+		json.NewEncoder(w).Encode([]any{})
+		return
+	}
+
+	type RepoInfo struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Branch string `json:"branch"`
+	}
+	var repos []RepoInfo
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		repoPath := filepath.Join(cloneBase, e.Name())
+		if _, err := os.Stat(filepath.Join(repoPath, ".git")); err != nil {
+			continue
+		}
+		branch := ""
+		if out, err := exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+			branch = strings.TrimSpace(string(out))
+		}
+		repos = append(repos, RepoInfo{Name: e.Name(), Path: repoPath, Branch: branch})
+	}
+	if repos == nil {
+		repos = []RepoInfo{}
+	}
+	json.NewEncoder(w).Encode(repos)
+}
+
+func handleRepoBranches(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	repo := r.URL.Query().Get("repo")
+	if repo == "" {
+		json.NewEncoder(w).Encode([]string{})
+		return
+	}
+	repoPath := filepath.Join(getCloneBase(), repo)
+
+	// fetch latest
+	exec.Command("git", "-C", repoPath, "fetch", "origin").Run()
+
+	out, err := exec.Command("git", "-C", repoPath, "branch", "-r", "--format=%(refname:short)").Output()
+	if err != nil {
+		json.NewEncoder(w).Encode([]string{})
+		return
+	}
+
+	var branches []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.Contains(line, "HEAD") {
+			continue
+		}
+		// remove "origin/" prefix
+		if strings.HasPrefix(line, "origin/") {
+			line = line[7:]
+		}
+		branches = append(branches, line)
+	}
+	if branches == nil {
+		branches = []string{}
+	}
+	json.NewEncoder(w).Encode(branches)
+}
+
+func handleRepoCheckout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	repo := r.URL.Query().Get("repo")
+	branch := r.URL.Query().Get("branch")
+	if repo == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "repo is required"})
+		return
+	}
+	repoPath := filepath.Join(getCloneBase(), repo)
+
+	// fetch
+	if out, err := exec.Command("git", "-C", repoPath, "fetch", "origin").CombinedOutput(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "git fetch failed: " + string(out)})
+		return
+	}
+
+	// switch branch if specified
+	if branch != "" {
+		if out, err := exec.Command("git", "-C", repoPath, "switch", branch).CombinedOutput(); err != nil {
+			// try creating tracking branch
+			if out2, err2 := exec.Command("git", "-C", repoPath, "switch", "-c", branch, "origin/"+branch).CombinedOutput(); err2 != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"message": "git switch failed: " + string(out) + "\n" + string(out2)})
+				return
+			}
+		}
+	}
+
+	// pull
+	if out, err := exec.Command("git", "-C", repoPath, "pull").CombinedOutput(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "git pull failed: " + string(out)})
+		return
+	}
+
+	// get current branch after checkout
+	currentBranch := ""
+	if out, err := exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		currentBranch = strings.TrimSpace(string(out))
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"message": "Checked out " + repo + " on " + currentBranch, "branch": currentBranch})
+}
+
 func handleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -2456,6 +2588,9 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
 	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
 	mux.HandleFunc("/api/git/clone", handleGitClone)
+	mux.HandleFunc("/api/git/repos", handleRepoListWithBranch)
+	mux.HandleFunc("/api/git/branches", handleRepoBranches)
+	mux.HandleFunc("/api/git/checkout", handleRepoCheckout)
 	mux.HandleFunc("/api/presets", handlePresets)
 	mux.HandleFunc("/api/sessions/memo", srv.handleMemo)
 	mux.HandleFunc("/api/config", handleConfig)
