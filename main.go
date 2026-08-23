@@ -788,7 +788,9 @@ func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send text + Enter via AppleScript
-	ts := getTerminalScripts(loadConfig())
+	cfg := loadConfig()
+	ts := getTerminalScripts(cfg)
+	hasNewline := strings.Contains(text, "\n")
 	escapedText := strings.ReplaceAll(text, `\`, `\\`)
 	escapedText = strings.ReplaceAll(escapedText, `"`, `\"`)
 	escapedText = strings.ReplaceAll(escapedText, "\n", `" & return & "`)
@@ -800,6 +802,26 @@ func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "AppleScript error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Multi-line text: input script's trailing Enter may not submit, send explicit Enter
+	if hasNewline {
+		time.Sleep(100 * time.Millisecond)
+		terminal := cfg.Terminal
+		if terminal == "" {
+			terminal = "iterm2"
+		}
+		if terminal == "terminal" {
+			// Terminal.app: use System Events keystroke
+			enterScript := strings.ReplaceAll(strings.ReplaceAll(ts.Keys, "{{TTY}}", tty), "{{CMDS}}", `keystroke return`)
+			exec.Command("osascript", "-e", enterScript).Run()
+		} else {
+			// iTerm2: write text "" sends Enter
+			enterScript := strings.ReplaceAll(ts.Input, "{{TTY}}", tty)
+			enterScript = strings.ReplaceAll(enterScript, "{{TEXT}}", "")
+			exec.Command("osascript", "-e", enterScript).Run()
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"result": strings.TrimSpace(string(result))})
 }
