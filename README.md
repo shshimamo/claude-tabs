@@ -116,24 +116,21 @@ mise install
 
 mise 未導入の場合: https://mise.jdx.dev/getting-started.html
 
-### ビルド & インストール
+### ビルド & 起動
 
 ```sh
+# 初回のみ
 cd frontend && pnpm install && pnpm approve-builds && cd ..
-make install
+
+# ビルド + インストール + 起動（2回目以降はこれだけ）
+make restart
 ```
+
+ブラウザで `http://{listen_address}:{port}`（デフォルト: http://localhost:6277）が自動で開く。サーバーが既に起動中なら既存サーバーに接続。
 
 ### Claude Code hooks 設定
 
 詳細は [docs/hooks-setup.md](docs/hooks-setup.md) を参照。
-
-### 起動
-
-```sh
-~/.claude-tabs/bin/claude-tabs
-```
-
-ブラウザが自動で開く。サーバーが既に起動中なら既存サーバーに接続。
 
 ## config.json について
 

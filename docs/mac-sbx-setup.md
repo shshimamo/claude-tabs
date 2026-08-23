@@ -23,15 +23,18 @@ cd claude-tabs
 mise install
 ```
 
-## 2. ビルド & インストール
+## 2. ビルド & 起動
 
 ```sh
+# 初回のみ
 cd frontend && pnpm install && pnpm approve-builds && cd ..
-make install
+
+# ビルド + インストール + 起動（2回目以降はこれだけ）
+make restart
+
+# sbx 内の Claude Code hooks 用 Linux バイナリ生成
 make install-hook-linux
 ```
-
-`make install-hook-linux` は sbx 内の Claude Code hooks 用 Linux バイナリを生成する。
 
 ## 3. Claude Code hooks 設定
 
