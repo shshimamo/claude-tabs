@@ -24,7 +24,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 | Git Clone | GUI からリポジトリをクローン（`sbx.clone_base` に保存） |
 | sbx 管理 | Create sbx / Attach sbx / Dockerfile テンプレート編集・ビルド |
 | | Attach 時の Worktree 作成、プロジェクト同時作成、削除時の sbx 同時削除 |
-| | Worktree 作成 CLI（`worktree create`）、[Mac + sbx セットアップガイド](docs/mac-sbx-setup.md) |
+| | Worktree 作成 CLI（`worktree create`）、[Mac + sbx セットアップガイド](setups/mac-sbx/) |
 | 設定・表示 | 会話履歴表示、定型文カスタマイズ、Settings モーダル |
 | i18n | UI 言語切り替え（英語 / 日本語） |
 

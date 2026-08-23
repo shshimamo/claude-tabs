@@ -1,9 +1,12 @@
 {
+  "worktree": {
+    "base": "~/worktrees"
+  },
   "sbx": {
     "clone_base": "~/src",
     "template": "my-sbx:latest",
     "post_create_cmds": [
-      ["~/src/claude-tabs/examples/sbx-setup.sh"]
+      ["~/src/claude-tabs/setups/mac-sbx/sbx-setup.sh"]
     ]
   },
   "terminal": "iterm2"

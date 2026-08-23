@@ -42,18 +42,19 @@ make install-hook-linux
 
 ```sh
 mkdir -p ~/.claude-tabs
-cp examples/config-sbx.json ~/.claude-tabs/config.json
+cp setups/mac-sbx/config.json ~/.claude-tabs/config.json
 ```
 
 最低限の設定が入った状態で使える。必要に応じて `~/.claude-tabs/config.json` を編集。
 
 | 設定 | 説明 | デフォルト |
 |------|------|-----------|
+| `worktree.base` | Worktree 保存先 | `~/worktrees` |
 | `sbx.clone_base` | Git Clone 先。Create sbx 時に自動マウントされる | `~/src` |
 | `sbx.template` | Create sbx で使用するテンプレート名 | `my-sbx:latest` |
 | `sbx.post_create_cmds` | sbx 作成後に実行するコマンド | `sbx-setup.sh`（hooks 自動設定） |
 
-`clone_base`（`~/src`）は sbx に自動マウントされるため、`~/src/claude-tabs/examples/sbx-setup.sh` が sbx 内から参照可能。sbx 作成時に hooks（Linux 用）が自動設定される。
+`clone_base`（`~/src`）は sbx に自動マウントされるため、`~/src/claude-tabs/setups/mac-sbx/sbx-setup.sh` が sbx 内から参照可能。sbx 作成時に hooks（Linux 用）が自動設定される。
 
 ## 4. sbx テンプレートのビルド（初回のみ）
 
