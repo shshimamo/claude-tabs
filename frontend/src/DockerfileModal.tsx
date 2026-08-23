@@ -10,11 +10,15 @@ export default function DockerfileModal({ onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [building, setBuilding] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [template, setTemplate] = useState('my-sbx:latest')
 
   useEffect(() => {
     fetch('/api/sbx/dockerfile').then(r => r.json()).then(data => {
       setContent(data.content || '')
       setIsDefault(data.is_default === 'true')
+    }).catch(() => {})
+    fetch('/api/config').then(r => r.json()).then(cfg => {
+      if (cfg.sbx?.template) setTemplate(cfg.sbx.template)
     }).catch(() => {})
   }, [])
 
@@ -38,7 +42,6 @@ export default function DockerfileModal({ onClose }: Props) {
 
   const handleBuild = async () => {
     if (isDefault) {
-      // save first if using default
       await handleSave()
     }
     setBuilding(true)
@@ -72,6 +75,12 @@ export default function DockerfileModal({ onClose }: Props) {
             onChange={e => setContent(e.target.value)}
             spellCheck={false}
           />
+          <div className="modal-steps">
+            <div className="modal-steps-label">Build commands</div>
+            <div className="modal-step">docker build -t {template} -f ~/.sbx/Dockerfile ~/.sbx/</div>
+            <div className="modal-step">docker save {template} -o &lt;tmpfile&gt;</div>
+            <div className="modal-step">sbx template load &lt;tmpfile&gt;</div>
+          </div>
           {result && (
             <div className={`modal-result ${result.ok ? 'modal-result-ok' : 'modal-result-err'}`}>
               {result.message}
