@@ -3,9 +3,12 @@
 # --- Claude Code hooks (Linux 用) の設定 ---
 # ------------------------------------------
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_TABS_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 # ホスト用 hooks を削除して Linux 用に差し替える（jq 必要）
 if command -v jq >/dev/null; then
-  HOOKS_JSON="{CLAUDE_TABS_PATH}/hooks-setup-linux.json"
+  HOOKS_JSON="$CLAUDE_TABS_DIR/hooks-setup-linux.json"
   if [ -f "$HOOKS_JSON" ]; then
     # ホスト用 claude-tabs hooks があれば削除
     jq '
