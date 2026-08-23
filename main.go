@@ -1885,6 +1885,88 @@ func handleRepoBranches(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(branches)
 }
 
+func handleSbxBranches(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	sbxName := r.URL.Query().Get("sbx")
+	repo := r.URL.Query().Get("repo")
+	if sbxName == "" || repo == "" {
+		json.NewEncoder(w).Encode([]any{})
+		return
+	}
+
+	// get remote URL to resolve org/repo for gh
+	remoteOut, err := exec.Command("sbx", "exec", sbxName, "git", "-C", repo, "remote", "get-url", "origin").Output()
+	if err != nil {
+		json.NewEncoder(w).Encode([]any{})
+		return
+	}
+	remoteURL := strings.TrimSpace(string(remoteOut))
+
+	// parse org/repo from remote URL
+	ghRepo := ""
+	if strings.Contains(remoteURL, "github.com") {
+		// ssh: git@github.com:org/repo.git  or  https://github.com/org/repo.git
+		remoteURL = strings.TrimSuffix(remoteURL, ".git")
+		if idx := strings.Index(remoteURL, "github.com"); idx >= 0 {
+			rest := remoteURL[idx+len("github.com"):]
+			rest = strings.TrimPrefix(rest, ":")
+			rest = strings.TrimPrefix(rest, "/")
+			ghRepo = rest
+		}
+	}
+
+	type BranchInfo struct {
+		Name string `json:"name"`
+		PR   int    `json:"pr,omitempty"`
+	}
+
+	// get branches via sbx
+	out, err := exec.Command("sbx", "exec", sbxName, "git", "-C", repo, "branch", "-r", "--format=%(refname:short)").Output()
+	if err != nil {
+		json.NewEncoder(w).Encode([]BranchInfo{})
+		return
+	}
+
+	var branches []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.Contains(line, "HEAD") {
+			continue
+		}
+		if strings.HasPrefix(line, "origin/") {
+			line = line[7:]
+		}
+		branches = append(branches, line)
+	}
+
+	// get PR info via gh (on host)
+	prMap := map[string]int{}
+	if ghRepo != "" {
+		prOut, err := exec.Command("gh", "pr", "list", "--repo", ghRepo, "--state", "open", "--json", "number,headRefName", "--limit", "200").Output()
+		if err == nil {
+			var prs []struct {
+				Number      int    `json:"number"`
+				HeadRefName string `json:"headRefName"`
+			}
+			if json.Unmarshal(prOut, &prs) == nil {
+				for _, pr := range prs {
+					prMap[pr.HeadRefName] = pr.Number
+				}
+			}
+		}
+	}
+
+	result := make([]BranchInfo, 0, len(branches))
+	for _, b := range branches {
+		bi := BranchInfo{Name: b}
+		if pr, ok := prMap[b]; ok {
+			bi.PR = pr
+		}
+		result = append(result, bi)
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
 func handleRepoCheckout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -2595,6 +2677,7 @@ func runServer() {
 	mux.HandleFunc("/api/sbx/build-template", handleSbxBuildTemplate)
 	mux.HandleFunc("/api/sbx/list", handleSbxList)
 	mux.HandleFunc("/api/sbx/repos", handleRepoList)
+	mux.HandleFunc("/api/sbx/branches", handleSbxBranches)
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
 	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
 	mux.HandleFunc("/api/git/clone", handleGitClone)

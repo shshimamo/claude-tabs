@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { t, type Locale } from './i18n'
 
 type CreatedProject = {
@@ -14,6 +14,7 @@ type Props = {
 }
 
 type RepoInfo = { path: string; branch: string }
+type BranchInfo = { name: string; pr?: number }
 type Mode = 'existing' | 'worktree'
 
 export default function SbxRunModal({ onClose, locale, onCreateProject }: Props) {
@@ -33,6 +34,11 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
   const [wtBase, setWtBase] = useState('')
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  // branch suggestions
+  const [branchList, setBranchList] = useState<BranchInfo[]>([])
+  const [branchLoading, setBranchLoading] = useState(false)
+  const [showBranchList, setShowBranchList] = useState(false)
+  const branchRef = useRef<HTMLInputElement>(null)
   // project creation
   const [createProject, setCreateProject] = useState(false)
   const [projectName, setProjectName] = useState('')
@@ -50,6 +56,7 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
     setRepoFilter('')
     setWtRepo('')
     setWtRepoFilter('')
+    setBranchList([])
     fetch(`/api/sbx/repos?sbx=${encodeURIComponent(sbx)}`).then(r => r.json()).then(setRepoList).catch(() => {})
   }, [sbx])
 
@@ -64,6 +71,25 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
     const q = wtRepoFilter.trim().toLowerCase()
     return repoList.filter(r => r.path.toLowerCase().includes(q))
   }, [repoList, wtRepoFilter])
+
+  const filteredBranches = useMemo(() => {
+    if (!wtBranch.trim()) return branchList
+    const q = wtBranch.trim().toLowerCase()
+    return branchList.filter(b => b.name.toLowerCase().includes(q))
+  }, [branchList, wtBranch])
+
+  const handleBranchFocus = () => {
+    if (branchList.length === 0 && sbx && wtRepo) {
+      setBranchLoading(true)
+      fetch(`/api/sbx/branches?sbx=${encodeURIComponent(sbx)}&repo=${encodeURIComponent(wtRepo)}`)
+        .then(r => r.json())
+        .then((data: BranchInfo[]) => { setBranchList(data); setShowBranchList(true) })
+        .catch(() => {})
+        .finally(() => setBranchLoading(false))
+    } else {
+      setShowBranchList(true)
+    }
+  }
 
   const handleRun = async () => {
     if (!sbx) return
@@ -170,7 +196,7 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
                     <div
                       key={r.path}
                       className="repo-item"
-                      onClick={() => { setWtRepo(r.path); setWtRepoFilter(r.path) }}
+                      onClick={() => { setWtRepo(r.path); setWtRepoFilter(r.path); setBranchList([]); setWtBranch('') }}
                     >
                       <span>{r.path}</span>
                       {r.branch && <span className="checkout-repo-branch">{r.branch}</span>}
@@ -187,12 +213,36 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
                   </span>
                 </span>
               </label>
-              <input
-                className="modal-input"
-                value={wtBranch}
-                onChange={e => setWtBranch(e.target.value)}
-                placeholder="e.g. feature/xxx or https://github.com/.../pull/123"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  ref={branchRef}
+                  className="modal-input"
+                  value={wtBranch}
+                  onChange={e => { setWtBranch(e.target.value); setShowBranchList(true) }}
+                  onFocus={handleBranchFocus}
+                  onBlur={() => setTimeout(() => setShowBranchList(false), 200)}
+                  placeholder={branchLoading ? 'Loading branches...' : 'e.g. feature/xxx or https://github.com/.../pull/123'}
+                />
+                {showBranchList && filteredBranches.length > 0 && (
+                  <div className="checkout-suggestions">
+                    {filteredBranches.slice(0, 20).map(b => (
+                      <div
+                        key={b.name}
+                        className="checkout-suggestion-item"
+                        onMouseDown={() => { setWtBranch(b.name); setShowBranchList(false); branchRef.current?.focus() }}
+                      >
+                        <span>{b.name}</span>
+                        {b.pr ? <span className="checkout-repo-branch">PR#{b.pr}</span> : null}
+                      </div>
+                    ))}
+                    {filteredBranches.length > 20 && (
+                      <div className="checkout-suggestion-item" style={{ opacity: 0.5 }}>
+                        ...{filteredBranches.length - 20} more
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <label className="modal-label">Base Branch <span style={{ color: '#6c7086', fontSize: 12 }}>{t('base_branch_hint', locale)}</span></label>
               <input
                 className="modal-input"

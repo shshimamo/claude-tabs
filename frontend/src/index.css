@@ -1279,5 +1279,8 @@ body {
   padding: 6px 12px;
   cursor: pointer;
   font-size: 0.9em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .checkout-suggestion-item:hover { background: #313244; }
