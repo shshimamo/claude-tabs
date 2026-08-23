@@ -77,7 +77,7 @@ export default function DockerfileModal({ onClose }: Props) {
           />
           <div className="modal-steps">
             <div className="modal-steps-label">Build commands</div>
-            <div className="modal-step">docker build -t {template} -f ~/.sbx/Dockerfile ~/.sbx/</div>
+            <div className="modal-step">docker build -t {template} -f ~/.claude-tabs/Dockerfile ~/.claude-tabs/</div>
             <div className="modal-step">docker save {template} -o &lt;tmpfile&gt;</div>
             <div className="modal-step">sbx template load &lt;tmpfile&gt;</div>
           </div>

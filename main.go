@@ -1789,7 +1789,7 @@ USER agent
 
 func handleSbxDockerfile(w http.ResponseWriter, r *http.Request) {
 	home, _ := os.UserHomeDir()
-	dockerfilePath := filepath.Join(home, ".sbx", "Dockerfile")
+	dockerfilePath := filepath.Join(home, ".claude-tabs", "Dockerfile")
 
 	switch r.Method {
 	case http.MethodGet:
@@ -1836,7 +1836,7 @@ func handleSbxBuildTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	home, _ := os.UserHomeDir()
-	dockerfilePath := filepath.Join(home, ".sbx", "Dockerfile")
+	dockerfilePath := filepath.Join(home, ".claude-tabs", "Dockerfile")
 
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		w.Header().Set("Content-Type", "application/json")

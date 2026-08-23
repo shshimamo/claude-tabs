@@ -48,11 +48,12 @@ sed -i '' "s|{CLAUDE_TABS_PATH}|$HOME/src/claude-tabs|g" setups/mac-sbx/sbx-setu
 
 > `~/src` 以外に clone した場合は適宜パスを変更。
 
-## 4. config.json の設定
+## 4. config.json / Dockerfile の配置
 
 ```sh
 mkdir -p ~/.claude-tabs
 cp setups/mac-sbx/config.json ~/.claude-tabs/config.json
+cp setups/mac-sbx/Dockerfile ~/.claude-tabs/Dockerfile
 ```
 
 最低限の設定が入った状態で使える。必要に応じて `~/.claude-tabs/config.json` を編集。
@@ -75,7 +76,7 @@ cp setups/mac-sbx/config.json ~/.claude-tabs/config.json
 
 内部で以下が実行される:
 ```
-docker build -t my-sbx:latest -f ~/.sbx/Dockerfile ~/.sbx/
+docker build -t my-sbx:latest -f ~/.claude-tabs/Dockerfile ~/.claude-tabs/
 docker save my-sbx:latest -o <tmpfile>
 sbx template load <tmpfile>
 ```
