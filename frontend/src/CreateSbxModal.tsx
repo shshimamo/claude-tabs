@@ -1,4 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+
+type SbxConfig = {
+  template?: string
+  default_mounts?: string[]
+  kits?: string[]
+  post_create_cmds?: string[][]
+  plugins?: { source: string; plugins: string[] }[]
+  clone_base?: string
+}
+
+type Config = {
+  sbx?: SbxConfig
+}
 
 type Props = {
   onClose: () => void
@@ -8,6 +21,11 @@ export default function CreateSbxModal({ onClose }: Props) {
   const [name, setName] = useState('')
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [cfg, setCfg] = useState<Config>({})
+
+  useEffect(() => {
+    fetch('/api/config').then(r => r.json()).then(setCfg).catch(() => {})
+  }, [])
 
   const handleCreate = async () => {
     if (!name.trim()) return
@@ -23,6 +41,33 @@ export default function CreateSbxModal({ onClose }: Props) {
     }
     setRunning(false)
   }
+
+  const sbx = cfg.sbx || {}
+  const template = sbx.template || 'my-sbx:latest'
+  const cloneBase = sbx.clone_base || '~/src'
+  const n = name.trim() || '<name>'
+
+  const steps = useMemo(() => {
+    const s: string[] = []
+    const mounts = [cloneBase, '~/.claude-tabs', ...(sbx.default_mounts || [])]
+    const kits = (sbx.kits || []).map(k => `--kit ${k}`).join(' ')
+    s.push(`sbx create --name ${n} -t ${template}${kits ? ' ' + kits : ''} claude ${mounts.join(' ')}`)
+    s.push(`sbx exec ${n} ln -sf ~/.claude-tabs ~/.claude-tabs`)
+    for (const cmd of sbx.post_create_cmds || []) {
+      s.push(`sbx exec ${n} ${cmd.join(' ')}`)
+    }
+    for (const pc of sbx.plugins || []) {
+      s.push(`sbx exec ${n} claude plugins marketplace add ${pc.source}`)
+      for (const p of pc.plugins) {
+        if (p === 'auto') {
+          s.push(`sbx exec ${n} claude plugins install <auto-detected>`)
+        } else {
+          s.push(`sbx exec ${n} claude plugins install ${p}`)
+        }
+      }
+    }
+    return s
+  }, [n, template, cloneBase, sbx])
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -41,6 +86,14 @@ export default function CreateSbxModal({ onClose }: Props) {
             placeholder="e.g. my-review"
             autoFocus
           />
+          {name.trim() && (
+            <div className="modal-steps">
+              <div className="modal-steps-label">Commands</div>
+              {steps.map((step, i) => (
+                <div key={i} className="modal-step">{step}</div>
+              ))}
+            </div>
+          )}
           {result && (
             <div className={`modal-result ${result.ok ? 'modal-result-ok' : 'modal-result-err'}`}>
               {result.message}
