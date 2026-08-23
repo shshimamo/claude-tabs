@@ -6,6 +6,7 @@ Git Clone / Create sbx / Attach sbx 機能を使い、ターミナル操作を�
 ## 前提
 
 - macOS（osascript によるターミナル操作に使用）
+- Docker インストール済み
 - sbx CLI インストール済み
 - iTerm2 推奨（Terminal.app も可）
 
@@ -15,9 +16,10 @@ Git Clone / Create sbx / Attach sbx 機能を使い、ターミナル操作を�
 # mise のインストール（未導入の場合）
 # https://mise.jdx.dev/getting-started.html
 
-# リポジトリをクローン
-git clone https://github.com/shshimamo/claude-tabs.git
-cd claude-tabs
+# clone_base にリポジトリをクローン
+mkdir -p ~/src
+git clone https://github.com/shshimamo/claude-tabs.git ~/src/claude-tabs
+cd ~/src/claude-tabs
 
 # 前提ツール（Go, Node.js, pnpm, gh）を一括インストール
 mise install
@@ -36,103 +38,45 @@ make restart
 make install-hook-linux
 ```
 
-## 3. Claude Code hooks 設定
-
-sbx 内で Claude Code を使う場合、hooks は Linux 用バイナリ（`claude-tabs-linux`）を指定する。
-
-`~/.claude/settings.json` の `hooks` セクションに以下を追加（`hooks-setup-linux.json` を参照）:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook SessionStart --claude-pid $PPID" }]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook UserPromptSubmit --claude-pid $PPID" }]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "AskUserQuestion",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook AskUserQuestion --claude-pid $PPID" }]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook Stop --claude-pid $PPID" }]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook PermissionRequest --claude-pid $PPID" }]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook PostToolUse --claude-pid $PPID" }]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "~/.claude-tabs/bin/claude-tabs-linux hook SessionEnd --claude-pid $PPID" }]
-      }
-    ]
-  }
-}
-```
-
-## 4. config.json の設定
-
-`~/.claude-tabs/config.json` を作成し、sbx 関連の設定を行う。
-
-```json
-{
-  "sbx": {
-    "clone_base": "~/src",
-    "template": "my-sbx:latest",
-    "default_mounts": [
-      "~/dotfiles:ro"
-    ],
-    "post_create_cmds": []
-  },
-  "terminal": "iterm2"
-}
-```
-
-| 設定 | 説明 |
-|------|------|
-| `sbx.clone_base` | Git Clone 先のベースディレクトリ。Create sbx 時に自動マウントされる |
-| `sbx.template` | Create sbx で使用するテンプレート名 |
-| `sbx.default_mounts` | sbx 作成時にマウントするディレクトリ（`clone_base` は自動追加） |
-| `sbx.post_create_cmds` | sbx 作成後に実行するコマンド |
-
-## 5. Dockerfile テンプレートの準備（任意）
-
-Web UI の「Dockerfile」ボタンからテンプレートの編集・ビルドが可能。
-デフォルトの雛形が用意されているので、そのままビルドするか、必要に応じてカスタマイズする。
-
-## 6. 起動 & 使い方
+## 3. config.json の設定
 
 ```sh
-claude-tabs
+mkdir -p ~/.claude-tabs
+cp examples/config-sbx.json ~/.claude-tabs/config.json
 ```
 
-ブラウザで `http://localhost:6277` を開く。
+最低限の設定が入った状態で使える。必要に応じて `~/.claude-tabs/config.json` を編集。
+
+| 設定 | 説明 | デフォルト |
+|------|------|-----------|
+| `sbx.clone_base` | Git Clone 先。Create sbx 時に自動マウントされる | `~/src` |
+| `sbx.template` | Create sbx で使用するテンプレート名 | `my-sbx:latest` |
+| `sbx.post_create_cmds` | sbx 作成後に実行するコマンド | `sbx-setup.sh`（hooks 自動設定） |
+
+`clone_base`（`~/src`）は sbx に自動マウントされるため、`~/src/claude-tabs/examples/sbx-setup.sh` が sbx 内から参照可能。sbx 作成時に hooks（Linux 用）が自動設定される。
+
+## 4. sbx テンプレートのビルド（初回のみ）
+
+1. ブラウザで claude-tabs を開く（`http://localhost:6277`）
+2. ヘッダーの **Dockerfile** ボタンをクリック
+3. デフォルトの雛形が表示される。そのままでも動作するが、必要に応じてカスタマイズ可能
+4. **Build Template** ボタンをクリック
+
+内部で以下が実行される:
+```
+docker build -t my-sbx:latest -f ~/.sbx/Dockerfile ~/.sbx/
+docker save my-sbx:latest -o <tmpfile>
+sbx template load <tmpfile>
+```
+
+テンプレートを変更したい場合は Dockerfile を編集して再度 Build するだけ。
+
+## 5. 使い方
 
 ### 基本的な流れ
 
 1. **Clone**: ヘッダーの「Clone」ボタンから Git リポジトリをクローン
-2. **Create sbx**: 「+ Create sbx」ボタンで sbx を作成（clone_base が自動マウントされる）
+2. **Create sbx**: 「+ Create sbx」ボタンで sbx を作成（clone_base + hooks が自動セットアップされる）
 3. **Attach sbx**: 「Attach sbx」ボタンで既存 sbx にアタッチし、リポジトリを選択して Claude を起動
 
 以降は Web UI 上でセッションの状態確認、定型文送信、許可操作などを行える。
