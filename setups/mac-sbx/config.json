@@ -1,13 +1,97 @@
 {
-  "worktree": {
-    "base": "~/worktrees"
-  },
+  "port": 6277,
+  "listen_address": "localhost",
+  "terminal": "terminal",
   "sbx": {
     "clone_base": "~/src",
     "template": "my-sbx:latest",
     "post_create_cmds": [
       ["~/src/claude-tabs/setups/mac-sbx/sbx-setup.sh"]
+    ],
+    "default_mounts": [],
+    "kits": [],
+    "plugins": []
+  },
+  "worktree": {
+    "base": "~/worktrees"
+  },
+  "focus_terminal_on_select": false,
+  "focus_browser_on_attention": {
+    "enable": true,
+    "statuses": [
+      "waiting_input",
+      "permission_required"
     ]
   },
-  "terminal": "iterm2"
+  "browser_app": "claude-tabs",
+  "locale": "ja",
+  "conversation_max_entries": 100,
+  "screen_lines": 20,
+  "preview_interval": 10,
+  "conversation": {
+    "height": "70vh",
+    "content_height": "200px"
+  },
+  "project": {
+    "default_link_sections": [
+      { "label": "PRD" },
+      { "label": "Slack" }
+    ]
+  },
+  "statuses": {
+    "ai_working": {
+      "color": "137, 180, 250",
+      "opacity": 0.3,
+      "label": "AI作業中"
+    },
+    "waiting_input": {
+      "color": "242, 205, 205",
+      "opacity": 0.3,
+      "label": "回答待ち"
+    },
+    "permission_required": {
+      "color": "250, 179, 135",
+      "opacity": 0.3,
+      "label": "許可待ち"
+    },
+    "idle": {
+      "color": "249, 226, 175",
+      "opacity": 0.15
+    },
+    "inactive_1h": {
+      "color": "88, 91, 112",
+      "opacity": 0
+    },
+    "inactive_3h": {
+      "color": "80, 79, 106",
+      "opacity": 0
+    },
+    "inactive_12h": {
+      "color": "72, 71, 100",
+      "opacity": 0
+    },
+    "inactive_24h": {
+      "color": "69, 71, 90",
+      "opacity": 0
+    },
+    "terminated": {
+      "color": "69, 71, 90",
+      "opacity": 0,
+      "label": "終了"
+    }
+  },
+  "presets": [
+    {
+      "label": "Yes",
+      "text": "yes"
+    },
+    {
+      "label": "Commit",
+      "text": "commit して"
+    },
+    {
+      "label": "Commit & Push",
+      "text": "commit して push して"
+    }
+  ]
 }
