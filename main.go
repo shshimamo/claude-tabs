@@ -670,8 +670,15 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 
 	result := "not_found"
 
-	// Try tty matching by PID
-	if pid > 0 {
+	// Prefer saved TTY (sbx PID != host PID)
+	if savedTTY != "" {
+		if focusTTY(savedTTY) {
+			result = "found"
+		}
+	}
+
+	// Fallback: try PID-based TTY lookup
+	if result != "found" && pid > 0 {
 		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
 			tty := "/dev/" + strings.TrimSpace(string(out))
 			if focusTTY(tty) {
@@ -680,12 +687,6 @@ func (s *server) handleFocusTerminal(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fallback: try saved TTY
-	if result != "found" && savedTTY != "" {
-		if focusTTY(savedTTY) {
-			result = "found"
-		}
-	}
 
 	// Fallback: just activate iTerm2
 	if result != "found" {
@@ -772,15 +773,12 @@ func (s *server) handleSendInput(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine tty
-	tty := ""
-	if pid > 0 {
+	// Determine tty: prefer saved TTY (sbx PID != host PID), fallback to ps lookup
+	tty := savedTTY
+	if tty == "" && pid > 0 {
 		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
 			tty = "/dev/" + strings.TrimSpace(string(out))
 		}
-	}
-	if tty == "" {
-		tty = savedTTY
 	}
 	if tty == "" {
 		http.Error(w, "no tty available", http.StatusBadRequest)
@@ -861,14 +859,12 @@ func (s *server) handleSendKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tty := ""
-	if pid > 0 {
+	// Prefer saved TTY (sbx PID != host PID), fallback to ps lookup
+	tty := savedTTY
+	if tty == "" && pid > 0 {
 		if out, err := exec.Command("ps", "-o", "tty=", "-p", strconv.Itoa(pid)).Output(); err == nil {
 			tty = "/dev/" + strings.TrimSpace(string(out))
 		}
-	}
-	if tty == "" {
-		tty = savedTTY
 	}
 	if tty == "" {
 		http.Error(w, "no tty available", http.StatusBadRequest)
