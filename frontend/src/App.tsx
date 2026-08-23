@@ -387,9 +387,11 @@ export default function App() {
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
         <button className="action-btn" onClick={() => setCloneOpen(true)}>Clone</button>
         <button className="action-btn" onClick={() => setCheckoutOpen(true)}>Checkout</button>
+        <span className="header-sep" />
         <button className="action-btn" onClick={() => setManageSbxOpen(true)}>Manage sbx</button>
         <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
         <button className="action-btn" onClick={() => setDockerfileOpen(true)}>Dockerfile</button>
+        <span className="header-sep" />
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {cloneOpen && <CloneModal onClose={() => setCloneOpen(false)} />}
