@@ -2617,7 +2617,7 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 	// repo may be an absolute path from sbx (e.g. /Users/shshimamo/src/claude-tabs)
 	// extract the base name for createWorktreeOnly which searches by name
 	repoName := filepath.Base(repo)
-	wtPath, resolvedBranch, isRemote, err := createWorktreeOnly(repoName, branch, baseBranch)
+	wtPath, resolvedBranch, _, err := createWorktreeOnly(repoName, branch, baseBranch)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
