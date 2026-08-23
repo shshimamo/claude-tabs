@@ -2605,7 +2605,10 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	wtPath, resolvedBranch, isRemote, err := createWorktreeOnly(repo, branch, baseBranch)
+	// repo may be an absolute path from sbx (e.g. /Users/shshimamo/src/claude-tabs)
+	// extract the base name for createWorktreeOnly which searches by name
+	repoName := filepath.Base(repo)
+	wtPath, resolvedBranch, isRemote, err := createWorktreeOnly(repoName, branch, baseBranch)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -2620,7 +2623,7 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 	} else if isRemote {
 		prefix = "remote-"
 	}
-	displayName := prefix + repo + "/" + resolvedBranch
+	displayName := prefix + repoName + "/" + resolvedBranch
 
 	cfg := loadConfig()
 	ts := getTerminalScripts(cfg)
