@@ -137,15 +137,25 @@ claude-tabs/
 |--------|------|------|
 | Go | ビルド | ○ |
 | Node.js + pnpm | フロントエンドビルド | ○ |
-| Claude Code | セッション管理対象 | ○ |
+| Claude Code | セッション管理対象 | ○（sbx 内で Claude Code を使う場合は不要） |
 | macOS + osascript | ターミナル操作（フォーカス・入力送信） | ○ |
-| git | Worktree 作成・削除 | Worktree 機能使用時 |
-| sbx | サンドボックス環境 | Worktree + sbx 連携時 |
+| git | Worktree 作成・削除、Git Clone | Worktree / Clone 機能使用時 |
+| sbx | サンドボックス環境 | sbx 機能使用時（Create / Attach / Worktree+sbx） |
 | gh | PR リンクからブランチ解決 | PR リンク使用時 |
 
-## 起動手順
+## セットアップ
 
-### 1. ビルド & インストール
+### 前提ツールのインストール（mise）
+
+[mise](https://mise.jdx.dev/) を使って前提ツールを一括インストールできる（sbx は別途インストール）。
+
+```sh
+mise install
+```
+
+mise 未導入の場合: https://mise.jdx.dev/getting-started.html
+
+### ビルド & インストール
 
 ```sh
 cd frontend && pnpm install && pnpm approve-builds && cd ..
