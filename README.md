@@ -11,7 +11,7 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - ステータス別グルーピング
 - セッション名のカスタマイズ
 - 時間ベースの非アクティブ検出（1h / 3h / 12h / 24h）
-- セッションメモ（サーバーサイド永続化）
+- セッションメモ（Markdown 表示、クリック編集、フォーカスアウトで自動保存）
 - サイドバー幅のドラッグリサイズ（localStorage 永続化）
 
 ### プロジェクト管理
@@ -19,10 +19,10 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - セッションのプロジェクトへのドラッグ&ドロップ割り当て
 - プロジェクト内セッションの手動並び替え（ドラッグ&ドロップ）
 - プロジェクト詳細画面（リンクセクション + Markdown メモ）
-- カスタマイズ可能なリンクセクション（PRD / Spec / NotebookLM / Slack 等、追加・削除・リネーム自由）
+- カスタマイズ可能なリンクセクション（GitHub / PRD / Spec / NotebookLM / Slack 等、追加・削除・リネーム自由）
 - デフォルトリンクセクションの config 設定
-- メモのクリック編集（クリックで編集モード、フォーカスアウトで自動保存）
-- Cmd+S でプロジェクト保存
+- 全フィールド自動保存（フォーカスアウトで保存、ボタン操作は即時保存）
+- セクション削除時の確認ダイアログ
 
 ### 会話管理
 - 会話エントリのサーバーサイド保存（セッション別 JSON ファイル）
@@ -46,16 +46,22 @@ Claude Code hooks でセッション状態をリアルタイム検知し、WebSo
 - UI 言語切り替え（英語 / 日本語）
 - `locale` 設定で切り替え（デフォルト: `"en"`）
 
+### Git Clone
+- GUI から Git リポジトリをクローン
+- `clone_base`（デフォルト `~/src`）にクローン
+
+### sbx 管理
+- **Create sbx**: sbx 名を入力するだけで作成（`clone_base` + デフォルトマウント自動構成、post-create コマンド自動実行）
+- **Attach sbx**: 既存 sbx にアタッチして任意のリポジトリで Claude 起動（sbx 内リポジトリを動的検出）
+- **Dockerfile テンプレート**: `~/.sbx/Dockerfile` の編集・保存・ビルドを GUI で完結（デフォルト雛形付き）
+- Attach sbx 時のプロジェクト同時作成（GitHub / Slack リンク付き）
+- セッション削除時の sbx 同時削除
+
 ### Worktree + sbx
 - Worktree + sbx + Claude 自動起動（Web UI / CLI）
 - セッション削除時の Worktree / sbx 同時削除
 - Base Branch 指定（worktree 作成時のベースブランチ）
 - PR リンクからブランチ自動解決（`gh pr view` 使用）
-
-### Attach sbx
-- 既存 sbx にアタッチして任意のリポジトリで Claude 起動
-- `repository_base` 配下の Git リポジトリを自動検出・フィルタ選択
-- New worktree モード（worktree 作成 + 既存 sbx にアタッチ）
 
 ### 設定・表示
 - AI の最終出力・ユーザー入力・許可リクエスト詳細の表示
@@ -100,6 +106,9 @@ claude-tabs/
         ├── ProjectDetail.tsx # プロジェクト詳細（リンクセクション + メモ）
         ├── WorktreeModal.tsx # Worktree作成モーダル
         ├── SbxRunModal.tsx  # 既存 sbx アタッチモーダル
+        ├── CreateSbxModal.tsx # sbx 作成モーダル
+        ├── CloneModal.tsx   # Git clone モーダル
+        ├── DockerfileModal.tsx # Dockerfile テンプレート編集モーダル
         ├── DeleteConfirmModal.tsx # セッション削除確認（Worktree/sbx）
         ├── ConfigModal.tsx  # Settings モーダル（config.json 編集）
         ├── i18n.ts          # 多言語対応（en/ja）
@@ -274,6 +283,7 @@ make install
 | `plugins`              | Worktree + sbx 連携 | プラグイン設定の配列 | `[]` |
 | `plugins[].source`     | Worktree + sbx 連携 | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `plugins[].plugins`    | Worktree + sbx 連携 | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
+| `clone_base`           | Git Clone / sbx       | `git clone` 先 / sbx マウントのベースディレクトリ | `~/src` |
 | `repository_base`      | Attach sbx            | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
 | `locale`               | 表示カスタマイズ         | UI言語（`"en"` or `"ja"`） | `"en"` |
 | `statuses`             | 表示カスタマイズ         | ステータス別設定（`{ "color": "R, G, B", "opacity": 0.15, "label": "表示名" }`） | 内蔵デフォルト |
@@ -337,7 +347,7 @@ make install
 }
 ```
 
-未設定時のデフォルト: PRD / Spec / NotebookLM / Slack。プロジェクト作成後は各プロジェクトで自由にセクションの追加・削除・リネームが可能。
+未設定時のデフォルト: GitHub / PRD / Spec / NotebookLM / Slack。プロジェクト作成後は各プロジェクトで自由にセクションの追加・削除・リネームが可能。
 
 ### 定型文カスタマイズ
 
@@ -359,7 +369,7 @@ config.json 表の `定型文カスタマイズ` で設定。
 
 config.json 表の `Worktree + sbx 連携` で設定。
 
-Web UI の「+ Create sbx」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
+Web UI の「+ Worktree」ボタン(または CLI) から、worktree 作成 + sbx セットアップ + Claude 自動起動が可能。
 
 #### sbx 側の必須セットアップ
 
