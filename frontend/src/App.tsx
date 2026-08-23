@@ -7,6 +7,9 @@ import WorktreeModal from './WorktreeModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
 import ConfigModal from './ConfigModal'
 import SbxRunModal from './SbxRunModal'
+import CloneModal from './CloneModal'
+import CreateSbxModal from './CreateSbxModal'
+import DockerfileModal from './DockerfileModal'
 import { notifyLabel, t, type Locale } from './i18n'
 
 export type Session = {
@@ -316,6 +319,22 @@ export default function App() {
     setSessionOrder(prev => ({ ...prev, [projectId]: sessionIds }))
   }, [])
 
+  const handleCreateProjectWithLinks = useCallback(async ({ name, githubUrl, slackUrl }: { name: string; githubUrl: string; slackUrl: string }) => {
+    const linkSections = []
+    if (githubUrl) linkSections.push({ label: 'GitHub', links: [{ name: 'Link', url: githubUrl }] })
+    if (slackUrl) linkSections.push({ label: 'Slack', links: [{ name: 'Link', url: slackUrl }] })
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, link_sections: linkSections }),
+    })
+    if (!res.ok) return
+    const p = await res.json()
+    setProjects(prev => [...prev, p])
+    setSelectedProjectId(p.id)
+    setSelectedId(null)
+  }, [])
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebar-width')
     return saved ? parseInt(saved, 10) : 260
@@ -342,6 +361,9 @@ export default function App() {
 
   const [wtModalOpen, setWtModalOpen] = useState(false)
   const [sbxRunOpen, setSbxRunOpen] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
+  const [createSbxOpen, setCreateSbxOpen] = useState(false)
+  const [dockerfileOpen, setDockerfileOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
 
   const DEFAULT_STATUS_COLORS: Record<string, { color: string; opacity: number }> = {
@@ -363,26 +385,18 @@ export default function App() {
       <header className={`header${hasAttention ? ' header-attention' : ''}`}>
         <span className="logo">claude-tabs</span>
         <span className="session-count">{sessions.filter(s => s.status !== 'terminated' && !s.status.startsWith('inactive_')).length} active</span>
-        <button className="action-btn new-wt-btn" onClick={() => setWtModalOpen(true)}>+ Create sbx</button>
+        <button className="action-btn" onClick={() => setCloneOpen(true)}>Clone</button>
+        <button className="action-btn new-wt-btn" onClick={() => setCreateSbxOpen(true)}>+ Create sbx</button>
         <button className="action-btn" onClick={() => setSbxRunOpen(true)}>Attach sbx</button>
+        <button className="action-btn" onClick={() => setWtModalOpen(true)}>+ Worktree</button>
+        <button className="action-btn" onClick={() => setDockerfileOpen(true)}>Dockerfile</button>
         <button className="action-btn settings-btn" onClick={() => setConfigOpen(true)}>Settings</button>
       </header>
       {wtModalOpen && <WorktreeModal onClose={() => setWtModalOpen(false)} locale={locale} />}
-      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} onCreateProject={async ({ name, githubUrl, slackUrl }) => {
-        const linkSections = []
-        if (githubUrl) linkSections.push({ label: 'GitHub', links: [{ name: 'Link', url: githubUrl }] })
-        if (slackUrl) linkSections.push({ label: 'Slack', links: [{ name: 'Link', url: slackUrl }] })
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, link_sections: linkSections }),
-        })
-        if (!res.ok) return
-        const p = await res.json()
-        setProjects(prev => [...prev, p])
-        setSelectedProjectId(p.id)
-        setSelectedId(null)
-      }} />}
+      {cloneOpen && <CloneModal onClose={() => setCloneOpen(false)} />}
+      {createSbxOpen && <CreateSbxModal onClose={() => setCreateSbxOpen(false)} />}
+      {sbxRunOpen && <SbxRunModal onClose={() => setSbxRunOpen(false)} locale={locale} onCreateProject={handleCreateProjectWithLinks} />}
+      {dockerfileOpen && <DockerfileModal onClose={() => setDockerfileOpen(false)} />}
       {configOpen && <ConfigModal onClose={() => setConfigOpen(false)} />}
       {deleteConfirm && <DeleteConfirmModal
         info={deleteConfirm}

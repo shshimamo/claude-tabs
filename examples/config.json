@@ -32,6 +32,7 @@
       "plugins": ["plugin-x"]
     }
   ],
+  "clone_base": "~/src",
   "repository_base": "~/devel/src",
   "locale": "en",
   "statuses": {

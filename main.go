@@ -1177,6 +1177,7 @@ type Config struct {
 	Plugins           []PluginConfig             `json:"plugins"`
 	Terminal          string                     `json:"terminal"`
 	TerminalPresets   map[string]TerminalScripts `json:"terminal_presets"`
+	CloneBase         string                     `json:"clone_base"`
 	RepositoryBase    string                     `json:"repository_base"`
 	ScreenLines       int                        `json:"screen_lines"`
 	Port              int                        `json:"port"`
@@ -1756,6 +1757,177 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(loadConfig().Presets)
 }
 
+const defaultDockerfile = `FROM docker/sandbox-templates:claude-code
+
+USER root
+
+# Basic tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    zsh \
+    curl \
+    jq \
+    make \
+    vim \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set zsh as default shell
+RUN chsh -s /usr/bin/zsh agent
+
+ENV SBX=1
+
+USER agent
+`
+
+func handleSbxDockerfile(w http.ResponseWriter, r *http.Request) {
+	home, _ := os.UserHomeDir()
+	dockerfilePath := filepath.Join(home, ".sbx", "Dockerfile")
+
+	switch r.Method {
+	case http.MethodGet:
+		data, err := os.ReadFile(dockerfilePath)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"content": defaultDockerfile, "is_default": "true"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"content": string(data), "is_default": "false"})
+	case http.MethodPut:
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "read error", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Content string `json:"content"`
+		}
+		if json.Unmarshal(body, &req) != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if err := os.MkdirAll(filepath.Dir(dockerfilePath), 0755); err != nil {
+			http.Error(w, "mkdir error", http.StatusInternalServerError)
+			return
+		}
+		if err := os.WriteFile(dockerfilePath, []byte(req.Content), 0644); err != nil {
+			http.Error(w, "write error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Saved"})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func handleSbxBuildTemplate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	home, _ := os.UserHomeDir()
+	dockerfilePath := filepath.Join(home, ".sbx", "Dockerfile")
+
+	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Dockerfile not found. Save it first."})
+		return
+	}
+
+	cfg := loadConfig()
+	tag := cfg.SbxTemplate
+	if tag == "" {
+		tag = "my-sbx:latest"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// docker build
+	dir := filepath.Dir(dockerfilePath)
+	buildOut, err := exec.Command("docker", "build", "-t", tag, "-f", dockerfilePath, dir).CombinedOutput()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "docker build failed: " + string(buildOut)})
+		return
+	}
+
+	// docker save + sbx template load
+	tmpFile := filepath.Join(os.TempDir(), "sbx-template-"+fmt.Sprintf("%d", time.Now().UnixNano())+".tar")
+	saveOut, err := exec.Command("docker", "save", tag, "-o", tmpFile).CombinedOutput()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "docker save failed: " + string(saveOut)})
+		return
+	}
+	defer os.Remove(tmpFile)
+
+	loadOut, err := exec.Command("sbx", "template", "load", tmpFile).CombinedOutput()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "sbx template load failed: " + string(loadOut)})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"message": "Template '" + tag + "' built and loaded successfully"})
+}
+
+func handleGitClone(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	repoURL := r.URL.Query().Get("url")
+	if repoURL == "" {
+		http.Error(w, `{"message":"url is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := loadConfig()
+	cloneBase := cfg.CloneBase
+	if cloneBase == "" {
+		cloneBase = "~/src"
+	}
+	// expand ~
+	if strings.HasPrefix(cloneBase, "~/") {
+		home, _ := os.UserHomeDir()
+		cloneBase = filepath.Join(home, cloneBase[2:])
+	}
+
+	// ensure clone_base exists
+	if err := os.MkdirAll(cloneBase, 0755); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "failed to create clone_base: " + err.Error()})
+		return
+	}
+
+	// extract repo name from URL
+	repoName := filepath.Base(strings.TrimSuffix(repoURL, ".git"))
+	dest := filepath.Join(cloneBase, repoName)
+
+	// check if already exists
+	if _, err := os.Stat(dest); err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Already cloned: " + dest, "path": dest})
+		return
+	}
+
+	cmd := exec.Command("git", "clone", repoURL, dest)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "git clone failed: " + string(output)})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Cloned to " + dest, "path": dest})
+}
+
 func handleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -1979,6 +2151,103 @@ func (s *server) handleWorktreeCreate(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 	}
 	json.NewEncoder(w).Encode(map[string]string{"message": "Worktree created and Claude started: " + sbxName})
+}
+
+func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sbxName := r.URL.Query().Get("name")
+	if sbxName == "" {
+		http.Error(w, `{"message":"name is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	cfg := loadConfig()
+
+	// clone_base をメインのマウントパスに
+	cloneBase := cfg.CloneBase
+	if cloneBase == "" {
+		cloneBase = "~/src"
+	}
+	cloneBase = expandHome(cloneBase)
+
+	claudeTabsDir := expandHome("~/.claude-tabs")
+	paths := []string{cloneBase, claudeTabsDir}
+	paths = append(paths, cfg.SbxDefaultMounts...)
+
+	template := cfg.SbxTemplate
+	if template == "" {
+		template = "my-sbx:latest"
+	}
+
+	sbxArgs := []string{"create", "--name", sbxName, "-t", template}
+	for _, kit := range cfg.SbxKits {
+		sbxArgs = append(sbxArgs, "--kit", kit)
+	}
+	sbxArgs = append(sbxArgs, "claude")
+	sbxArgs = append(sbxArgs, paths...)
+	if out, err := exec.Command("sbx", sbxArgs...).CombinedOutput(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "sbx create failed: " + string(out)})
+		return
+	}
+
+	// ~/.claude-tabs symlink
+	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
+
+	// post-create commands
+	for _, cmd := range cfg.SbxPostCreateCmds {
+		if len(cmd) > 0 {
+			args := append([]string{"exec", sbxName}, cmd...)
+			exec.Command("sbx", args...).Run()
+		}
+	}
+
+	// plugins install
+	for _, pc := range cfg.Plugins {
+		exec.Command("sbx", "exec", sbxName, "claude", "plugins", "marketplace", "add", pc.Source).Run()
+		if len(pc.Plugins) == 1 && pc.Plugins[0] == "auto" {
+			marketplaceName := ""
+			if mdata, err := os.ReadFile(filepath.Join(pc.Source, ".claude-plugin", "marketplace.json")); err == nil {
+				var mj struct{ Name string `json:"name"` }
+				if json.Unmarshal(mdata, &mj) == nil && mj.Name != "" {
+					marketplaceName = mj.Name
+				}
+			}
+			if marketplaceName != "" {
+				if entries, err := os.ReadDir(filepath.Join(pc.Source, "plugins")); err == nil {
+					for _, e := range entries {
+						if e.IsDir() {
+							exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", e.Name()+"@"+marketplaceName).Run()
+						}
+					}
+				}
+			}
+		} else {
+			for _, plugin := range pc.Plugins {
+				exec.Command("sbx", "exec", sbxName, "claude", "plugins", "install", plugin).Run()
+			}
+		}
+	}
+
+	// 新タブでclaude起動
+	ts := getTerminalScripts(cfg)
+	command := fmt.Sprintf("sbx run --name %s claude", sbxName)
+	script := strings.ReplaceAll(ts.NewTab, "{{COMMAND}}", command)
+	ttyOut, _ := exec.Command("osascript", "-e", script).Output()
+	tty := strings.TrimSpace(string(ttyOut))
+
+	if tty != "" {
+		s.mu.Lock()
+		s.pendingTTY[cloneBase] = tty
+		s.pendingName[cloneBase] = sbxName
+		s.mu.Unlock()
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"message": "sbx created: " + sbxName})
 }
 
 func handleSbxList(w http.ResponseWriter, r *http.Request) {
@@ -2259,10 +2528,14 @@ func runServer() {
 	mux.HandleFunc("/api/sessions/keys", srv.handleSendKeys)
 	mux.HandleFunc("/api/sessions/history", srv.handleHistory)
 	mux.HandleFunc("/api/worktree/create", srv.handleWorktreeCreate)
+	mux.HandleFunc("/api/sbx/create", srv.handleSbxCreate)
+	mux.HandleFunc("/api/sbx/dockerfile", handleSbxDockerfile)
+	mux.HandleFunc("/api/sbx/build-template", handleSbxBuildTemplate)
 	mux.HandleFunc("/api/sbx/list", handleSbxList)
 	mux.HandleFunc("/api/sbx/repos", handleRepoList)
 	mux.HandleFunc("/api/sbx/run", srv.handleSbxRun)
 	mux.HandleFunc("/api/sbx/attach-worktree", srv.handleSbxAttachWorktree)
+	mux.HandleFunc("/api/git/clone", handleGitClone)
 	mux.HandleFunc("/api/presets", handlePresets)
 	mux.HandleFunc("/api/sessions/memo", srv.handleMemo)
 	mux.HandleFunc("/api/config", handleConfig)

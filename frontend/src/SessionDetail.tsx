@@ -72,6 +72,7 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
   const [cwdBases, setCwdBases] = useState<string[]>([])
   const [memo, setMemo] = useState('')
   const [memoOpen, setMemoOpen] = useState(false)
+  const [memoEdit, setMemoEdit] = useState(false)
   const [screenContent, setScreenContent] = useState('')
   const [screenLoading, setScreenLoading] = useState(false)
   const [previewInterval, setPreviewInterval] = useState(10000)
@@ -96,6 +97,7 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
   // Sync memo from session
   useEffect(() => {
     setMemo(session.memo || '')
+    setMemoEdit(false)
   }, [session.session_id])
 
   const fetchConversations = () => {
@@ -141,8 +143,7 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
       .catch(() => {})
   }
 
-  const updateMemo = (text: string) => {
-    setMemo(text)
+  const saveMemo = (text: string) => {
     fetch(`/api/sessions/memo?id=${encodeURIComponent(session.session_id)}&memo=${encodeURIComponent(text)}`, { method: 'POST' })
   }
 
@@ -381,13 +382,25 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
           {!memoOpen && memo && <span className="memo-has-content">●</span>}
         </div>
         {memoOpen && (
-          <textarea
-            className="memo-textarea"
-            value={memo}
-            onChange={e => updateMemo(e.target.value)}
-            placeholder={t('enter_memo', locale)}
-            rows={4}
-          />
+          memoEdit ? (
+            <textarea
+              className="memo-textarea"
+              value={memo}
+              onChange={e => setMemo(e.target.value)}
+              onBlur={() => { setMemoEdit(false); saveMemo(memo) }}
+              placeholder={t('enter_memo', locale)}
+              rows={4}
+              autoFocus
+            />
+          ) : (
+            <div className="project-memo-preview" onClick={() => setMemoEdit(true)}>
+              {memo ? (
+                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{memo}</Markdown>
+              ) : (
+                <span className="project-memo-empty">Click to edit...</span>
+              )}
+            </div>
+          )
         )}
       </div>
 
