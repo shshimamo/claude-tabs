@@ -2081,8 +2081,8 @@ func worktreeCreate(repo, branch, baseBranch string) (tty, cwdPath, sbxName stri
 		return "", "", "", fmt.Errorf("sbx create failed: %s", out)
 	}
 
-	// ~/.claude-tabs symlink (マウントパスがホスト側パスになるため)
-	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
+	// ~/.claude-tabs symlink (マウントパスがホスト側パスになるため、sbx内HOMEにリンク)
+	exec.Command("sbx", "exec", sbxName, "sh", "-c", "ln -sf "+claudeTabsDir+" $HOME/.claude-tabs").Run()
 
 	// setup commands (best effort)
 	for _, cmd := range cfg.Sbx.PostCreateCmds {
@@ -2203,8 +2203,8 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ~/.claude-tabs symlink
-	exec.Command("sbx", "exec", sbxName, "ln", "-sf", claudeTabsDir, expandHome("~")+"/.claude-tabs").Run()
+	// ~/.claude-tabs symlink (マウントパスがホスト側パスになるため、sbx内HOMEにリンク)
+	exec.Command("sbx", "exec", sbxName, "sh", "-c", "ln -sf "+claudeTabsDir+" $HOME/.claude-tabs").Run()
 
 	// post-create commands
 	for _, cmd := range cfg.Sbx.PostCreateCmds {
