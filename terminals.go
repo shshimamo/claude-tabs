@@ -99,7 +99,19 @@ end tell`,
 	do script "{{TEXT}}" in (first tab of first window whose tty is "{{TTY}}")
 	return "sent"
 end tell`,
-		Keys: `tell application "System Events"
+		Keys: `tell application "Terminal"
+	activate
+	repeat with w in windows
+		repeat with t in tabs of w
+			if tty of t is "{{TTY}}" then
+				set selected tab of w to t
+				set index of w to 1
+			end if
+		end repeat
+	end repeat
+end tell
+delay 0.3
+tell application "System Events"
 	tell process "Terminal"
 		{{CMDS}}
 	end tell
