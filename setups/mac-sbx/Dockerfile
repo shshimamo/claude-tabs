@@ -15,6 +15,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set zsh as default shell
 RUN chsh -s /usr/bin/zsh agent
 
-ENV SBX=1
-
 USER agent
