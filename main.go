@@ -2266,6 +2266,9 @@ func (s *server) handleSbxCreate(w http.ResponseWriter, r *http.Request) {
 
 	claudeTabsDir := expandHome("~/.claude-tabs")
 	paths := []string{cloneBase, claudeTabsDir}
+	if cfg.Worktree.Base != "" {
+		paths = append(paths, expandHome(cfg.Worktree.Base))
+	}
 	paths = append(paths, cfg.Sbx.DefaultMounts...)
 
 	template := cfg.Sbx.Template
@@ -2557,8 +2560,6 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 	dirPrefix := ""
 	if prNumber != "" {
 		dirPrefix = "pr" + prNumber + "-"
-	} else if isRemote {
-		dirPrefix = "remote-"
 	}
 	safeBranch := strings.ReplaceAll(branch, "/", "__")
 	wtPath = filepath.Join(wtBase, repo, dirPrefix+safeBranch)
@@ -2628,8 +2629,6 @@ func (s *server) handleSbxAttachWorktree(w http.ResponseWriter, r *http.Request)
 	prefix := "wt-"
 	if prNumber != "" {
 		prefix = "pr" + prNumber + "-"
-	} else if isRemote {
-		prefix = "remote-"
 	}
 	displayName := prefix + repoName + "/" + resolvedBranch
 
