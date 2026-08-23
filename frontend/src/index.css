@@ -813,6 +813,9 @@ body {
   font-size: 13px;
   color: #cdd6f4;
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .repo-item:hover { background: #313244; }
 

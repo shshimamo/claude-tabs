@@ -2297,7 +2297,11 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 		}
 		bases = append(bases, expandHome(cloneBase))
 
-		var repos []string
+		type RepoWithBranch struct {
+			Path   string `json:"path"`
+			Branch string `json:"branch"`
+		}
+		var repos []RepoWithBranch
 		for _, base := range bases {
 			out, err := exec.Command("sbx", "exec", sbxName, "find", base, "-name", ".git", "-type", "d", "-maxdepth", "4").CombinedOutput()
 			if err != nil {
@@ -2305,13 +2309,19 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 			}
 			for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 				line = strings.TrimSpace(line)
-				if line != "" {
-					repos = append(repos, filepath.Dir(line))
+				if line == "" {
+					continue
 				}
+				repoPath := filepath.Dir(line)
+				branch := ""
+				if bOut, err := exec.Command("sbx", "exec", sbxName, "git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+					branch = strings.TrimSpace(string(bOut))
+				}
+				repos = append(repos, RepoWithBranch{Path: repoPath, Branch: branch})
 			}
 		}
 		if repos == nil {
-			repos = []string{}
+			repos = []RepoWithBranch{}
 		}
 		json.NewEncoder(w).Encode(repos)
 		return

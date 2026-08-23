@@ -13,11 +13,12 @@ type Props = {
   onCreateProject?: (project: CreatedProject) => Promise<void>
 }
 
+type RepoInfo = { path: string; branch: string }
 type Mode = 'existing' | 'worktree'
 
 export default function SbxRunModal({ onClose, locale, onCreateProject }: Props) {
   const [sbxList, setSbxList] = useState<string[]>([])
-  const [repoList, setRepoList] = useState<string[]>([])
+  const [repoList, setRepoList] = useState<RepoInfo[]>([])
   const [sbx, setSbx] = useState('')
   const [mode, setMode] = useState<Mode>('existing')
   // existing mode
@@ -25,6 +26,7 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
   const [selectedRepo, setSelectedRepo] = useState('')
   // worktree mode
   const [wtRepo, setWtRepo] = useState('')
+  const [wtRepoFilter, setWtRepoFilter] = useState('')
   const [wtBranch, setWtBranch] = useState('')
   const [wtBase, setWtBase] = useState('')
   const [running, setRunning] = useState(false)
@@ -44,14 +46,22 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
     setRepoList([])
     setSelectedRepo('')
     setRepoFilter('')
+    setWtRepo('')
+    setWtRepoFilter('')
     fetch(`/api/sbx/repos?sbx=${encodeURIComponent(sbx)}`).then(r => r.json()).then(setRepoList).catch(() => {})
   }, [sbx])
 
   const filteredRepos = useMemo(() => {
     if (!repoFilter.trim()) return repoList
     const q = repoFilter.trim().toLowerCase()
-    return repoList.filter(r => r.toLowerCase().includes(q))
+    return repoList.filter(r => r.path.toLowerCase().includes(q))
   }, [repoList, repoFilter])
+
+  const filteredWtRepos = useMemo(() => {
+    if (!wtRepoFilter.trim()) return repoList
+    const q = wtRepoFilter.trim().toLowerCase()
+    return repoList.filter(r => r.path.toLowerCase().includes(q))
+  }, [repoList, wtRepoFilter])
 
   const handleRun = async () => {
     if (!sbx) return
@@ -128,11 +138,12 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
                 <div className="repo-list">
                   {filteredRepos.map(r => (
                     <div
-                      key={r}
+                      key={r.path}
                       className="repo-item"
-                      onClick={() => { setSelectedRepo(r); setRepoFilter(r) }}
+                      onClick={() => { setSelectedRepo(r.path); setRepoFilter(r.path) }}
                     >
-                      {r}
+                      <span>{r.path}</span>
+                      {r.branch && <span className="checkout-repo-branch">{r.branch}</span>}
                     </div>
                   ))}
                 </div>
@@ -143,10 +154,24 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
               <label className="modal-label">Repository</label>
               <input
                 className="modal-input"
-                value={wtRepo}
-                onChange={e => setWtRepo(e.target.value)}
-                placeholder="e.g. claude-tabs"
+                value={wtRepoFilter}
+                onChange={e => { setWtRepoFilter(e.target.value); setWtRepo('') }}
+                placeholder="Filter repositories..."
               />
+              {filteredWtRepos.length > 0 && !wtRepo && (
+                <div className="repo-list">
+                  {filteredWtRepos.map(r => (
+                    <div
+                      key={r.path}
+                      className="repo-item"
+                      onClick={() => { setWtRepo(r.path); setWtRepoFilter(r.path) }}
+                    >
+                      <span>{r.path}</span>
+                      {r.branch && <span className="checkout-repo-branch">{r.branch}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
               <label className="modal-label">
                 Branch / PR Link
                 <span className="tooltip-wrap">
