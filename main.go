@@ -2271,7 +2271,45 @@ func handleSbxList(w http.ResponseWriter, r *http.Request) {
 
 func handleRepoList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	sbxName := r.URL.Query().Get("sbx")
 	cfg := loadConfig()
+	if sbxName != "" {
+		// sbx内のリポジトリを動的に取得（config記載のbase配下のみ）
+		var bases []string
+		if cfg.RepositoryBase != "" {
+			bases = append(bases, expandHome(cfg.RepositoryBase))
+		}
+		if cfg.WorktreeBase != "" {
+			bases = append(bases, expandHome(cfg.WorktreeBase))
+		}
+		cloneBase := cfg.CloneBase
+		if cloneBase == "" {
+			cloneBase = "~/src"
+		}
+		bases = append(bases, expandHome(cloneBase))
+
+		var repos []string
+		for _, base := range bases {
+			out, err := exec.Command("sbx", "exec", sbxName, "find", base, "-name", ".git", "-type", "d", "-maxdepth", "4").CombinedOutput()
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" {
+					repos = append(repos, filepath.Dir(line))
+				}
+			}
+		}
+		if repos == nil {
+			repos = []string{}
+		}
+		json.NewEncoder(w).Encode(repos)
+		return
+	}
+
+	// ホスト側スキャン（従来互換）
 	if cfg.RepositoryBase == "" {
 		json.NewEncoder(w).Encode([]string{})
 		return
@@ -2318,12 +2356,18 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := loadConfig()
-	// worktree_base 配下に存在すればそちらを使う
-	fullPath := filepath.Join(cfg.RepositoryBase, repoPath)
-	if cfg.WorktreeBase != "" {
-		wtPath := filepath.Join(cfg.WorktreeBase, repoPath)
-		if _, err := os.Stat(wtPath); err == nil {
-			fullPath = wtPath
+	var fullPath string
+	if filepath.IsAbs(repoPath) {
+		// sbx内のフルパス
+		fullPath = repoPath
+	} else {
+		// 相対パス（従来互換）
+		fullPath = filepath.Join(cfg.RepositoryBase, repoPath)
+		if cfg.WorktreeBase != "" {
+			wtPath := filepath.Join(cfg.WorktreeBase, repoPath)
+			if _, err := os.Stat(wtPath); err == nil {
+				fullPath = wtPath
+			}
 		}
 	}
 

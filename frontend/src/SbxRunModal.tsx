@@ -37,8 +37,15 @@ export default function SbxRunModal({ onClose, locale, onCreateProject }: Props)
 
   useEffect(() => {
     fetch('/api/sbx/list').then(r => r.json()).then(setSbxList).catch(() => {})
-    fetch('/api/sbx/repos').then(r => r.json()).then(setRepoList).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!sbx) { setRepoList([]); return }
+    setRepoList([])
+    setSelectedRepo('')
+    setRepoFilter('')
+    fetch(`/api/sbx/repos?sbx=${encodeURIComponent(sbx)}`).then(r => r.json()).then(setRepoList).catch(() => {})
+  }, [sbx])
 
   const filteredRepos = useMemo(() => {
     if (!repoFilter.trim()) return repoList
