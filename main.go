@@ -1728,7 +1728,7 @@ end tell`,
 	repeat with w in windows
 		repeat with t in tabs of w
 			if tty of t is "{{TTY}}" then
-				return contents of t
+				return history of t
 			end if
 		end repeat
 	end repeat
