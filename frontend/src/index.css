@@ -497,6 +497,7 @@ body {
 }
 .action-btn:hover { background: #45475a; }
 .action-btn:disabled { opacity: 0.5; cursor: default; }
+.preset-btn { font-size: 11px; padding: 3px 10px; }
 
 
 

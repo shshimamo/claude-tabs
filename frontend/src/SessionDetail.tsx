@@ -354,7 +354,7 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
           <div className="detail-input-label">{t('presets', locale)}</div>
           <div className="detail-input-row">
             {presets.map((p, i) => (
-              <button key={i} className="action-btn" onClick={() => handleSendInput(p.text)} disabled={sending}>{p.label}</button>
+              <button key={i} className="action-btn preset-btn" onClick={() => handleSendInput(p.text)} disabled={sending}>{p.label}</button>
             ))}
           </div>
           <div className="detail-input-label" style={{ marginTop: 12 }}>{t('free_input', locale)}</div>
@@ -473,11 +473,11 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
         </div>
       </div>
 
-      <div className="detail-question">
-        <div className="detail-question-label memo-label" onClick={() => setMemoOpen(v => !v)} style={{ cursor: 'pointer' }}>
+      <div className="history-section">
+        <button className="history-toggle" onClick={() => setMemoOpen(v => !v)}>
           {memoOpen ? '▾' : '▸'} Memo
           {!memoOpen && memo && <span className="memo-has-content">●</span>}
-        </div>
+        </button>
         {memoOpen && (
           memoEdit ? (
             <textarea
