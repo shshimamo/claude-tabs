@@ -1185,8 +1185,7 @@ type SbxConfig struct {
 	PostCreateCmds [][]string     `json:"post_create_cmds"`
 	Kits           []string       `json:"kits"`
 	Plugins        []PluginConfig `json:"plugins"`
-	CloneBase      string         `json:"clone_base"`
-	RepositoryBase string         `json:"repository_base"`
+	CloneBase string `json:"clone_base"`
 }
 
 type WorktreeConfig struct {
@@ -1637,7 +1636,6 @@ func loadConfig() Config {
 	for i := range cfg.Sbx.Plugins {
 		cfg.Sbx.Plugins[i].Source = expandHome(cfg.Sbx.Plugins[i].Source)
 	}
-	cfg.Sbx.RepositoryBase = expandHome(cfg.Sbx.RepositoryBase)
 	return cfg
 }
 
@@ -2411,9 +2409,6 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 	if sbxName != "" {
 		// sbx内のリポジトリを動的に取得（config記載のbase配下のみ）
 		var bases []string
-		if cfg.Sbx.RepositoryBase != "" {
-			bases = append(bases, expandHome(cfg.Sbx.RepositoryBase))
-		}
 		if cfg.Worktree.Base != "" {
 			bases = append(bases, expandHome(cfg.Worktree.Base))
 		}
@@ -2453,11 +2448,8 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ホスト側スキャン（従来互換）
-	if cfg.Sbx.RepositoryBase == "" {
-		json.NewEncoder(w).Encode([]string{})
-		return
-	}
+	// ホスト側スキャン
+	cloneBase := getCloneBase()
 	var repos []string
 	scanGitRepos := func(base string, maxDepth int) {
 		if base == "" {
@@ -2479,7 +2471,7 @@ func handleRepoList(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 	}
-	scanGitRepos(cfg.Sbx.RepositoryBase, 4)
+	scanGitRepos(cloneBase, 4)
 	scanGitRepos(cfg.Worktree.Base, 2)
 	if repos == nil {
 		repos = []string{}
@@ -2506,7 +2498,7 @@ func (s *server) handleSbxRun(w http.ResponseWriter, r *http.Request) {
 		fullPath = repoPath
 	} else {
 		// 相対パス（従来互換）
-		fullPath = filepath.Join(cfg.Sbx.RepositoryBase, repoPath)
+		fullPath = filepath.Join(getCloneBase(), repoPath)
 		if cfg.Worktree.Base != "" {
 			wtPath := filepath.Join(cfg.Worktree.Base, repoPath)
 			if _, err := os.Stat(wtPath); err == nil {
@@ -2542,13 +2534,9 @@ func createWorktreeOnly(repo, branch, baseBranch string) (wtPath, resolvedBranch
 
 	cfg := loadConfig()
 
-	// repository_base, clone_base からリポジトリ検索
+	// clone_base からリポジトリ検索
 	var repoPath string
-	searchBases := []string{}
-	if cfg.Sbx.RepositoryBase != "" {
-		searchBases = append(searchBases, cfg.Sbx.RepositoryBase)
-	}
-	searchBases = append(searchBases, getCloneBase())
+	searchBases := []string{getCloneBase()}
 	for _, base := range searchBases {
 		if repoPath != "" {
 			break

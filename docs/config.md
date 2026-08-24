@@ -15,8 +15,7 @@
 | `sbx.plugins`              | sbx      | プラグイン設定の配列 | `[]` |
 | `sbx.plugins[].source`     | sbx      | ローカルパス（`~` 展開可）または GitHub URL（`user/repo`、`https://...`） | — |
 | `sbx.plugins[].plugins`    | sbx      | インストールするプラグイン名。`["auto"]` でローカルの `plugins/` から自動検出 | — |
-| `sbx.clone_base`           | sbx      | `git clone` 先 / sbx マウントのベースディレクトリ | `~/src` |
-| `sbx.repository_base`      | sbx      | Git リポジトリ検索のベースディレクトリ（`~` 展開可、深さ4まで探索） | — |
+| `sbx.clone_base`           | sbx      | Git リポジトリ検索・`git clone` 先・sbx マウントのベースディレクトリ（深さ4まで探索） | `~/src` |
 | `locale`               | 表示カスタマイズ         | UI言語（`"en"` or `"ja"`） | `"en"` |
 | `statuses`             | 表示カスタマイズ         | ステータス別設定（`{ "color": "R, G, B", "opacity": 0.15, "label": "表示名" }`） | 内蔵デフォルト |
 | `conversation_max_entries` | 会話管理           | 会話エントリの最大保持数（お気に入りは除外） | `100` |

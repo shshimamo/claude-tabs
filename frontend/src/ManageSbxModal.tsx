@@ -11,6 +11,7 @@ type SbxConfig = {
 
 type Config = {
   sbx?: SbxConfig
+  worktree?: { base?: string }
 }
 
 type Props = {
@@ -71,7 +72,8 @@ export default function ManageSbxModal({ onClose }: Props) {
 
   const steps = useMemo(() => {
     const s: string[] = []
-    const mounts = [cloneBase, '~/.claude-tabs', ...(sbx.default_mounts || [])]
+    const wtBase = cfg.worktree?.base
+    const mounts = [cloneBase, ...(wtBase ? [wtBase] : []), '~/.claude-tabs', ...(sbx.default_mounts || [])]
     const kits = (sbx.kits || []).map(k => `--kit ${k}`).join(' ')
     s.push(`sbx create --name ${n} -t ${template}${kits ? ' ' + kits : ''} claude ${mounts.join(' ')}`)
     s.push(`sbx exec ${n} ln -sf ~/.claude-tabs ~/.claude-tabs`)
