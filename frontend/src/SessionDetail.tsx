@@ -351,14 +351,12 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
 
       {['idle', 'waiting_input'].includes(session.status) && (session.pid > 0 || session.tty) && (
         <div className="detail-input-section">
-          <div className="detail-input-label">{t('presets', locale)}</div>
           <div className="detail-input-row">
             {presets.map((p, i) => (
               <button key={i} className="action-btn preset-btn" onClick={() => handleSendInput(p.text)} disabled={sending}>{p.label}</button>
             ))}
           </div>
-          <div className="detail-input-label" style={{ marginTop: 12 }}>{t('free_input', locale)}</div>
-          <div className="detail-input-row">
+          <div className="detail-input-row" style={{ marginTop: 8 }}>
             <textarea
               className="detail-send-input detail-send-textarea"
               value={sendText}
@@ -390,26 +388,26 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
           </button>
           <button
             className="action-btn"
-            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0, opacity: favFilter ? 1 : 0.5 }}
+            style={{ fontSize: '12px', padding: '3px 8px', minWidth: 0, opacity: favFilter ? 1 : 0.5 }}
             onClick={() => setFavFilter(v => !v)}
             title="Filter favorites"
           >★</button>
           {savedOutputs.some(s => s.favorite) && (
             <button
               className="action-btn deny-btn"
-              style={{ fontSize: '10px', padding: '1px 4px', minWidth: 0 }}
+              style={{ fontSize: '11px', padding: '3px 6px', minWidth: 0 }}
               onClick={() => { if (confirm(t('confirm_delete_non_favorites', locale))) deleteNonFavorites() }}
               title="Delete non-favorites"
             >🗑️</button>
           )}
           <button
             className="action-btn"
-            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+            style={{ fontSize: '12px', padding: '3px 8px', minWidth: 0 }}
             onClick={() => setOutputMode(m => { const next = m === 'text' ? 'md' : 'text'; localStorage.setItem('output-mode', next); return next })}
           >{outputMode === 'text' ? 'MD' : 'Text'}</button>
           <button
             className="action-btn"
-            style={{ fontSize: '11px', padding: '1px 6px', minWidth: 0 }}
+            style={{ fontSize: '12px', padding: '3px 8px', minWidth: 0 }}
             onClick={() => setOutputLight(v => { const next = !v; localStorage.setItem('output-light', next ? '1' : '0'); return next })}
           >{outputLight ? '🌙' : '☀️'}</button>
         </div>
