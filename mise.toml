@@ -1,4 +1,5 @@
 [tools]
 go = "1.26"
 node = "25"
+"npm:pnpm" = "11"
 gh = "2"
