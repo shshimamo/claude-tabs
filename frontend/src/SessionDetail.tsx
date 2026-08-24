@@ -375,35 +375,6 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
         </div>
       )}
 
-      <div className="detail-question">
-        <div className="detail-question-label memo-label" onClick={() => setMemoOpen(v => !v)} style={{ cursor: 'pointer' }}>
-          {memoOpen ? '▾' : '▸'} Memo
-          {!memoOpen && memo && <span className="memo-has-content">●</span>}
-        </div>
-        {memoOpen && (
-          memoEdit ? (
-            <textarea
-              className="memo-textarea"
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-              onBlur={() => { setMemoEdit(false); saveMemo(memo) }}
-              placeholder={t('enter_memo', locale)}
-              rows={4}
-              autoFocus
-            />
-          ) : (
-            <div className="project-memo-preview" onClick={() => setMemoEdit(true)}>
-              {memo ? (
-                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{memo}</Markdown>
-              ) : (
-                <span className="project-memo-empty">Click to edit...</span>
-              )}
-            </div>
-          )
-        )}
-      </div>
-
-
       {session.question && (
         <div className="detail-question">
           <div className="detail-question-label">Question</div>
@@ -500,6 +471,34 @@ export default function SessionDetail({ session, onRename, onSetTTY, locale, sta
             )
           })}
         </div>
+      </div>
+
+      <div className="detail-question">
+        <div className="detail-question-label memo-label" onClick={() => setMemoOpen(v => !v)} style={{ cursor: 'pointer' }}>
+          {memoOpen ? '▾' : '▸'} Memo
+          {!memoOpen && memo && <span className="memo-has-content">●</span>}
+        </div>
+        {memoOpen && (
+          memoEdit ? (
+            <textarea
+              className="memo-textarea"
+              value={memo}
+              onChange={e => setMemo(e.target.value)}
+              onBlur={() => { setMemoEdit(false); saveMemo(memo) }}
+              placeholder={t('enter_memo', locale)}
+              rows={4}
+              autoFocus
+            />
+          ) : (
+            <div className="project-memo-preview" onClick={() => setMemoEdit(true)}>
+              {memo ? (
+                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{memo}</Markdown>
+              ) : (
+                <span className="project-memo-empty">Click to edit...</span>
+              )}
+            </div>
+          )
+        )}
       </div>
 
       <div className="history-section">
